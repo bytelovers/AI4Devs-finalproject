@@ -1,7 +1,6 @@
-# INSTRUCCIÓN DE CODIFICACIÓN:
 Implementa la interfaz de usuario de la pantalla de estudio en Next.js bajo la ruta `/deck/[slug]/study`.
 1. Fetching de Datos: Consulta las tarjetas vencidas conectándote al backend que lee de Turso. Si no hay tarjetas, renderiza un componente de "Empty State" indicando que el mazo está completamente al día.
-2. Estado de la Tarjeta: Renderiza el frente de la tarjeta ocultando las soluciones según su tipo. Al pulsar un botón "Ver respuesta", revela el dorso o las opciones correctas y habilita dos botones: "Lo sabía" y "No lo sabía" que disparan el backend de la US2.
+2. Estado de la Tarjeta: Renderiza el frente de la tarjeta ocultando las soluciones según su tipo. Al pulsar un botón "Ver respuesta", revela el dorso o las opciones correctas y habilita dos botones: "Lo sabía" y "No lo sabía" que disparan la acción de la US2.
 3. Pomodoro con Persistencia en `sessionStorage`:
    - Diseña un Custom Hook llamado `usePomodoro` que maneje el estado de los minutos y segundos del ciclo (Estudio: 25 min / Descanso: 5 min).
    - En cada tick del intervalo (1 segundo), escribe el timestamp de finalización esperado en el `sessionStorage`.

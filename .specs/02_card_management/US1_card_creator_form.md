@@ -18,14 +18,9 @@
     * **When** escribo un texto base en el input que NO contenga los caracteres exactos `[...]`,
     * **Then** el cliente bloquea el envío y muestra un mensaje de error: "El texto de la tarjeta tipo Cloze debe contener obligatoriamente el marcador [...]".
 
-## 3. Instrucción de Codificación para la IA (System Prompt)
-```text
-INSTRUCCIÓN DE CODIFICACIÓN:
-Crea un componente SPA en Next.js (App Router, Tailwind CSS, TypeScript) llamado `CardCreatorForm`.
-1. Debe consumir mediante fetch los mazos existentes del backend para rellenar un selector. Permitir alternar a modo "Nuevo mazo" que pide: `title` y `slug` (validar en cliente minúsculas y guiones).
-2. Renderiza dinámicamente campos basados en un `<select>` de `card_type`:
-   - 'classic': 2 textareas (Frente y Dorso).
-   - 'single_choice': Input de pregunta, botón para añadir inputs de opciones (Máx 5) y radio buttons para marcar el índice correcto.
-   - 'multiple_choice': Igual al anterior pero con checkboxes para almacenar múltiples índices correctos.
-   - 'cloze': Input para texto base (con validación de `[...]`) y un input para la palabra oculta.
-3. Integra validación mediante la librería `Zod`. Al hacer submit, realiza un POST hacia la API del servidor. El objeto `content` debe ser transformado en un string JSON (`JSON.stringify`) antes de enviarse a Turso.
+## 3. Requerimientos de Testing de Interfaz y Validación (Playwright)
+
+La IA debe crear un archivo de pruebas en `tests/card-creator.spec.ts`.
+* Caso de prueba 1 (Cambio de Estado Dinámico): Seleccionar el tipo de tarjeta 'single_choice'. Verificar que los inputs de 'Frente' y 'Dorso' desaparecen y que el botón "Añadir opción" aparece en el DOM. Pulsar el botón 5 veces y validar que el botón se deshabilita al llegar a la quinta opción.
+* Caso de prueba 2 (Intercepción de Validación Zod): Seleccionar tipo 'cloze', escribir un texto sin el marcador `[...]` y pulsar "Guardar". Validar que el formulario no dispara la petición de red (API POST). Verificar que aparece el texto de error reglamentario.
+* Caso de prueba 3 (Flujo Alternativo): Rellenar el formulario seleccionando "Nuevo Mazo", rellenar título, slug y contenido válido. Mockear la respuesta de la API para simular un HTTP 409 (Slug Duplicado). Verificar que la interfaz muestra una alerta: "El alias del mazo ya está en uso".
