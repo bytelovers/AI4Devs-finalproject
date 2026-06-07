@@ -26,7 +26,7 @@ All unit tests are executed with **Vitest**.
 ### 2.1 Testing the Penny Adjustment Algorithm
 The mathematical rounding resolver must guarantee that divided amounts add up exactly to the total.
 
-- **Test Suite**: `src/utils/pennyAdjustment.test.ts`
+- **Test Suite**: `src/utils/mathHelper.test.ts`
 - **Key Test Cases**:
   1. *Simple division with decimals*: Split 10.00€ among 3 people. Assert that:
      - Person A receives 3.33€

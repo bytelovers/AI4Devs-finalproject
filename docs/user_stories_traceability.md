@@ -17,6 +17,7 @@ Este documento sirve como índice central para el andamiaje de Historias de Usua
 | **US-07** | Redondeo Visual y Propinas | Épica 2: Advanced Reparto | 📝 Listo | [US-07.md](./user-stories/epic-2-advanced/US-07.md) |
 | **US-08** | Gamificación: La Ruleta del Pagador | Épica 2: Advanced Reparto | 📝 Listo | [US-08.md](./user-stories/epic-2-advanced/US-08.md) |
 | **US-09** | Dictado al Camarero e Historial Local | Épica 2: Advanced Reparto | 📝 Listo | [US-09.md](./user-stories/epic-2-advanced/US-09.md) |
+| **US-15** | Selector de Tema y Rediseño Visual Sage & Amber | Épica 2: Advanced Reparto | 📝 Listo | [US-15.md](./user-stories/epic-2-advanced/US-15.md) |
 | **US-10** | QR Bizum Personalizado y Mensajes | Épica 3: Cloud Convenience | 📝 Listo | [US-10.md](./user-stories/epic-3-cloud/US-10.md) |
 | **US-11** | Sincronización Cloud de Amigos y Grupos | Épica 3: Cloud Convenience | 📝 Listo | [US-11.md](./user-stories/epic-3-cloud/US-11.md) |
 | **US-12** | Backup Cloud de Tickets e Historial | Épica 3: Cloud Convenience | 📝 Listo | [US-12.md](./user-stories/epic-3-cloud/US-12.md) |
