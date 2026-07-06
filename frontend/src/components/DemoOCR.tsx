@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import * as Comlink from 'comlink';
 import { db } from '../db/localDB';
 import { useTicketStore } from '../store/useTicketStore';
-import { convertToGrayscale, computeOtsuThreshold, binarizeImage } from '../workers/image.utils';
+import { convertToGrayscale, computeOtsuThreshold, binarizeImage, flattenReceipt, isConvexPolygon, Point } from '../workers/image.utils';
 import type { OCRWorkerType } from '../workers/ocr.worker';
 import type { LLMWorkerType } from '../workers/llm.worker';
 
@@ -41,6 +41,98 @@ export const DemoOCR: React.FC = () => {
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [savedTickets, setSavedTickets] = useState<any[]>([]);
+
+  const [activeHandle, setActiveHandle] = useState<number | null>(null);
+  const [isAdjustingPerspective, setIsAdjustingPerspective] = useState(false);
+  const [corners, setCorners] = useState<[Point, Point, Point, Point]>([
+    { x: 0.1, y: 0.1 },
+    { x: 0.9, y: 0.1 },
+    { x: 0.9, y: 0.9 },
+    { x: 0.1, y: 0.9 }
+  ]);
+  const imageRef = useRef<HTMLImageElement | null>(null);
+
+  // Handle dragging handle points globally to avoid losing focus
+  useEffect(() => {
+    if (activeHandle === null) return;
+
+    const handleGlobalMove = (e: PointerEvent) => {
+      if (activeHandle === null || !imageRef.current) return;
+      const rect = imageRef.current.getBoundingClientRect();
+      const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      const y = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+
+      const newCorners = corners.map((c, i) => i === activeHandle ? { x, y } : c) as [Point, Point, Point, Point];
+
+      if (isConvexPolygon(newCorners)) {
+        setCorners(newCorners);
+      }
+    };
+
+    const handleGlobalUp = () => {
+      setActiveHandle(null);
+    };
+
+    window.addEventListener('pointermove', handleGlobalMove);
+    window.addEventListener('pointerup', handleGlobalUp);
+
+    return () => {
+      window.removeEventListener('pointermove', handleGlobalMove);
+      window.removeEventListener('pointerup', handleGlobalUp);
+    };
+  }, [activeHandle, corners]);
+
+  const handleFlatten = () => {
+    if (!imageSrc) return;
+    const img = new Image();
+    img.onload = () => {
+      const scaledSourcePoints = corners.map(c => ({
+        x: c.x * img.naturalWidth,
+        y: c.y * img.naturalHeight
+      })) as [Point, Point, Point, Point];
+
+      try {
+        const dewarpedCanvas = flattenReceipt(img, scaledSourcePoints);
+        const dewarpedCtx = dewarpedCanvas.getContext('2d');
+        if (dewarpedCtx) {
+          const dewarpedImageData = dewarpedCtx.getImageData(0, 0, dewarpedCanvas.width, dewarpedCanvas.height);
+          originalImageDataRef.current = dewarpedImageData;
+
+          const grayscale = convertToGrayscale(dewarpedImageData);
+          const autoThresh = computeOtsuThreshold(grayscale);
+          setThreshold(autoThresh);
+
+          if (canvasRef.current) {
+            const canvas = canvasRef.current;
+            canvas.width = dewarpedCanvas.width;
+            canvas.height = dewarpedCanvas.height;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              const binarized = binarizeImage(dewarpedImageData, autoThresh);
+              ctx.putImageData(binarized, 0, 0);
+
+              const binarizedDataUrl = canvas.toDataURL('image/png');
+              setProcessedImageSrc(binarizedDataUrl);
+
+              const dewarpedDataUrl = dewarpedCanvas.toDataURL('image/png');
+              setImageSrc(dewarpedDataUrl);
+            }
+          }
+
+          setIsAdjustingPerspective(false);
+          setCorners([
+            { x: 0.1, y: 0.1 },
+            { x: 0.9, y: 0.1 },
+            { x: 0.9, y: 0.9 },
+            { x: 0.1, y: 0.9 }
+          ]);
+        }
+      } catch (err) {
+        console.error('Error flattening receipt:', err);
+      }
+    };
+    img.src = imageSrc;
+  };
 
   // Load history from Dexie
   const loadSavedTickets = async () => {
@@ -148,6 +240,15 @@ export const DemoOCR: React.FC = () => {
         setImageSrc(dataUrl);
         setProcessedImageSrc(dataUrl);
 
+        // Reset perspective editor state when a new image is loaded
+        setIsAdjustingPerspective(false);
+        setCorners([
+          { x: 0.1, y: 0.1 },
+          { x: 0.9, y: 0.1 },
+          { x: 0.9, y: 0.9 },
+          { x: 0.1, y: 0.9 }
+        ]);
+
         // Stop camera tracks
         stopWebcam();
       }
@@ -185,6 +286,15 @@ export const DemoOCR: React.FC = () => {
 
           const dataUrl = canvas.toDataURL('image/png');
           setProcessedImageSrc(dataUrl);
+
+          // Reset perspective editor state when a new image is loaded
+          setIsAdjustingPerspective(false);
+          setCorners([
+            { x: 0.1, y: 0.1 },
+            { x: 0.9, y: 0.1 },
+            { x: 0.9, y: 0.9 },
+            { x: 0.1, y: 0.9 }
+          ]);
         }
       }
     };
@@ -279,6 +389,13 @@ export const DemoOCR: React.FC = () => {
   const handleClear = () => {
     resetStore();
     originalImageDataRef.current = null;
+    setIsAdjustingPerspective(false);
+    setCorners([
+      { x: 0.1, y: 0.1 },
+      { x: 0.9, y: 0.1 },
+      { x: 0.9, y: 0.9 },
+      { x: 0.1, y: 0.9 }
+    ]);
     if (canvasRef.current) {
       const ctx = canvasRef.current.getContext('2d');
       if (ctx) {
@@ -407,6 +524,51 @@ export const DemoOCR: React.FC = () => {
               </div>
             )}
 
+            {/* Perspective Adjustment Controls */}
+            {imageSrc && (
+              <div className="p-4 bg-neutral-800/40 border border-neutral-800 rounded-xl space-y-3">
+                <div className="flex justify-between items-center text-sm font-medium">
+                  <span className="text-neutral-300">Ajuste de Perspectiva:</span>
+                </div>
+                <div className="flex gap-2">
+                  {!isAdjustingPerspective ? (
+                    <button
+                      onClick={() => setIsAdjustingPerspective(true)}
+                      className="flex-1 py-2 px-4 bg-emerald-700/80 hover:bg-emerald-600 text-white rounded-lg text-xs font-semibold transition-all border border-emerald-600/50"
+                    >
+                      Ajustar Esquinas / Editar Perspectiva
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        onClick={handleFlatten}
+                        className="flex-1 py-2 px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold transition-all"
+                      >
+                        Aplanar Ticket
+                      </button>
+                      <button
+                        onClick={() => setCorners([
+                          { x: 0.1, y: 0.1 },
+                          { x: 0.9, y: 0.1 },
+                          { x: 0.9, y: 0.9 },
+                          { x: 0.1, y: 0.9 }
+                        ])}
+                        className="py-2 px-3 bg-neutral-700 hover:bg-neutral-600 text-neutral-200 rounded-lg text-xs transition-all border border-neutral-600"
+                      >
+                        Restablecer
+                      </button>
+                      <button
+                        onClick={() => setIsAdjustingPerspective(false)}
+                        className="py-2 px-3 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-lg text-xs transition-all border border-neutral-700"
+                      >
+                        Cancelar
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Threshold Manual Slider */}
             {imageSrc && (
               <div className="p-4 bg-neutral-800/40 border border-neutral-800 rounded-xl space-y-3">
@@ -432,22 +594,73 @@ export const DemoOCR: React.FC = () => {
           {/* Interactive Binarization Canvas Preview */}
           <div className="mt-6 flex-1 flex flex-col justify-center">
             <span className="text-sm font-semibold text-neutral-300 mb-2 block">
-              Vista Previa de Imagen Binarizada (B&W)
+              {isAdjustingPerspective ? 'Ajustar Perspectiva del Ticket' : 'Vista Previa de Imagen Binarizada (B&W)'}
             </span>
             <div className="border border-neutral-800 bg-neutral-950 rounded-xl p-4 flex items-center justify-center min-h-[300px] overflow-auto">
-              <canvas
-                ref={canvasRef}
-                className="max-w-full max-h-[450px] object-contain rounded shadow-md"
-                style={{ display: imageSrc ? 'block' : 'none' }}
-              />
-              {!imageSrc && (
-                <div className="text-center py-12 text-neutral-600">
-                  <svg className="w-12 h-12 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  <p className="text-sm">Ninguna imagen cargada</p>
+              <div className="relative inline-block max-w-full max-h-[450px]">
+                {/* SVG perspective adjustment overlay container */}
+                <div style={{ display: isAdjustingPerspective && imageSrc ? 'block' : 'none' }}>
+                  {imageSrc && (
+                    <>
+                      <img
+                        ref={imageRef}
+                        src={imageSrc}
+                        alt="Original preview"
+                        className="max-w-full max-h-[450px] object-contain rounded select-none"
+                        draggable={false}
+                      />
+                      <svg
+                        className="absolute top-0 left-0 w-full h-full cursor-crosshair select-none"
+                        viewBox="0 0 1000 1000"
+                        preserveAspectRatio="none"
+                      >
+                        <polygon
+                          points={corners.map(c => `${c.x * 1000},${c.y * 1000}`).join(' ')}
+                          fill="rgba(16, 185, 129, 0.2)"
+                          stroke="#10b981"
+                          strokeWidth="4"
+                        />
+                        {corners.map((c, idx) => (
+                          <circle
+                            key={idx}
+                            cx={c.x * 1000}
+                            cy={c.y * 1000}
+                            r="20"
+                            fill="#10b981"
+                            stroke="#ffffff"
+                            strokeWidth="4"
+                            className="cursor-pointer hover:fill-emerald-400 hover:stroke-emerald-100 transition-colors"
+                            onPointerDown={(e) => {
+                              e.preventDefault();
+                              (e.target as Element).setPointerCapture(e.pointerId);
+                              setActiveHandle(idx);
+                            }}
+                            onPointerUp={(e) => {
+                              (e.target as Element).releasePointerCapture(e.pointerId);
+                            }}
+                          />
+                        ))}
+                      </svg>
+                    </>
+                  )}
                 </div>
-              )}
+
+                {/* Main canvas for processed image */}
+                <canvas
+                  ref={canvasRef}
+                  className="max-w-full max-h-[450px] object-contain rounded shadow-md"
+                  style={{ display: !isAdjustingPerspective && imageSrc ? 'block' : 'none' }}
+                />
+
+                {!imageSrc && (
+                  <div className="text-center py-12 text-neutral-600">
+                    <svg className="w-12 h-12 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <p className="text-sm">Ninguna imagen cargada</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
