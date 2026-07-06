@@ -1,36 +1,24 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useTheme } from './useTheme';
 
 describe('useTheme Hook', () => {
   let mediaQueryListener: (() => void) | null = null;
   let matchesMock = false;
+  const originalMatchMedia = window.matchMedia;
 
   beforeEach(() => {
-    // Clear localStorage and mocks
+    // Clear localStorage
     localStorage.clear();
     document.documentElement.className = '';
     mediaQueryListener = null;
     matchesMock = false;
 
-    // Mock localStorage
-    const store: Record<string, string> = {};
-    vi.stubGlobal('localStorage', {
-      getItem: vi.fn((key: string) => store[key] || null),
-      setItem: vi.fn((key: string, value: string) => {
-        store[key] = value;
-      }),
-      clear: vi.fn(() => {
-        for (const key in store) {
-          delete store[key];
-        }
-      }),
-    });
-
-    // Mock matchMedia
-    vi.stubGlobal('window', {
-      ...window,
-      matchMedia: vi.fn().mockImplementation((query: string) => ({
+    // Mock matchMedia on window directly (do not stub the entire window object)
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      configurable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
         matches: matchesMock,
         media: query,
         onchange: null,
@@ -49,6 +37,15 @@ describe('useTheme Hook', () => {
         dispatchEvent: vi.fn(),
       })),
     });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      configurable: true,
+      value: originalMatchMedia,
+    });
+    vi.restoreAllMocks();
   });
 
   it('should initialize with system theme by default when localStorage is empty', () => {
