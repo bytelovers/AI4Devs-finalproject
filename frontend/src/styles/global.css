@@ -218,3 +218,183 @@ button:active {
     scroll-behavior: auto !important;
   }
 }
+
+/* ─── Winner Bounce Animation ─────────────────────────────────────── */
+@keyframes winner-bounce {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+}
+
+.winner-bounce {
+  animation: winner-bounce 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  animation-fill-mode: both;
+}
+/* ────────────────────────────────────────────────────────────────── */
+
+/* ─── Drawer Component Styles ─────────────────────────────────────── */
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0);
+  pointer-events: none;
+  transition: background-color var(--transition-normal);
+  z-index: 40;
+}
+
+.drawer-backdrop--visible {
+  background-color: rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+}
+
+.drawer {
+  position: fixed;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: min(280px, 80vw);
+  background-color: var(--bg-secondary);
+  border-inline-end: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  z-index: 50;
+  transform: translateX(-100%);
+  transition: transform var(--transition-normal);
+  box-shadow: var(--shadow-xl);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.drawer--open {
+  transform: translateX(0);
+}
+
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-16) var(--space-20);
+  border-block-end: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.drawer-title {
+  font-family: var(--font-heading);
+  font-weight: var(--weight-bold);
+  font-size: var(--text-lg);
+  color: var(--color-sage);
+  letter-spacing: -0.01em;
+}
+
+.drawer-close-btn {
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: var(--text-base);
+  padding: var(--space-8);
+  line-height: 1;
+  transition: color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.drawer-close-btn:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-tertiary);
+}
+
+.drawer-close-btn:focus-visible {
+  outline: 2px solid var(--color-sage);
+  outline-offset: 2px;
+}
+
+.drawer-nav-list {
+  list-style: none;
+  padding: var(--space-8) 0;
+  flex: 1;
+}
+
+.drawer-nav-link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  padding: var(--space-12) var(--space-20);
+  color: var(--text-primary);
+  text-decoration: none;
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  border-radius: 0;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.drawer-nav-link:hover {
+  background-color: var(--bg-tertiary);
+  color: var(--color-sage);
+}
+
+.drawer-nav-link:focus-visible {
+  outline: 2px solid var(--color-sage);
+  outline-offset: -2px;
+}
+
+.drawer-nav-icon {
+  font-size: var(--text-md);
+  flex-shrink: 0;
+}
+
+.drawer-footer {
+  padding: var(--space-16) var(--space-20);
+  border-block-start: 1px solid var(--border);
+  flex-shrink: 0;
+}
+/* ────────────────────────────────────────────────────────────────── */
+
+/* ─── ThemeSelector Component Styles ──────────────────────────────── */
+.theme-selector-wrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+}
+
+.theme-selector-label {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  cursor: default;
+}
+
+.theme-selector-select {
+  flex: 1;
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-normal);
+  color: var(--text-primary);
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-8) var(--space-12);
+  cursor: pointer;
+  appearance: auto;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.theme-selector-select:hover {
+  border-color: var(--color-sage);
+}
+
+.theme-selector-select:focus-visible {
+  outline: 2px solid var(--color-sage);
+  outline-offset: 2px;
+  border-color: var(--color-sage);
+}
+/* ────────────────────────────────────────────────────────────────── */
+
+/* ─── QR Code Dark Mode Optimization ──────────────────────────────── */
+.dark .qr-container {
+  filter: invert(1) hue-rotate(180deg);
+}
+/* ────────────────────────────────────────────────────────────────── */
+
