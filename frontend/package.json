@@ -5,18 +5,25 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:portless": "portless",
+    "dev:mobile": "portless --lan",
     "build": "tsc && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "test": "vitest run"
   },
   "dependencies": {
-    "dexie": "^4.0.1",
+    "@mlc-ai/web-llm": "^0.2.84",
+    "comlink": "^4.4.2",
+    "dexie": "^4.4.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "tesseract.js": "^5.0.0"
+    "tailwindcss": "^4.3.2",
+    "tesseract.js": "^5.1.1",
+    "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.3.2",
     "@testing-library/jest-dom": "^6.4.2",
     "@testing-library/react": "^14.2.1",
     "@testing-library/user-event": "^14.5.2",
