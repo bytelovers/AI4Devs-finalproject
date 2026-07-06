@@ -35,105 +35,84 @@ export const OCRScanner: React.FC<OCRScannerProps> = ({ onScanComplete, onClose 
   };
 
   return (
-    <div className="ocr-scanner-container" style={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '24px',
-      gap: '20px',
-      backgroundColor: 'var(--bg-base-dark, #111415)',
-      color: '#FFFFFF',
-      borderRadius: '16px',
-      position: 'relative',
-      overflow: 'hidden',
-      width: '100%',
-      maxWidth: '400px',
-      margin: '0 auto',
-      minHeight: '400px',
-      border: '1px solid var(--border, #2d3748)'
-    }}>
+    <div className="ocr-scanner-container relative overflow-hidden w-full max-w-md mx-auto min-h-[420px] p-6 flex flex-col items-center justify-between rounded-2xl border border-[var(--border)] bg-neutral-900/90 backdrop-blur-xl shadow-2xl text-white transition-all duration-300 hover:shadow-emerald-950/20">
       {onClose && (
         <button 
           onClick={onClose} 
           aria-label="Cerrar escáner"
-          style={{
-            position: 'absolute',
-            top: '12px',
-            right: '12px',
-            background: 'transparent',
-            border: 'none',
-            color: '#FFFFFF',
-            fontSize: '20px',
-            cursor: 'pointer',
-            padding: '8px'
-          }}
+          className="absolute top-4 right-4 p-2 rounded-full bg-neutral-800/80 text-neutral-400 hover:text-white hover:bg-neutral-700/80 transition-all cursor-pointer z-10"
+          style={{ width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', border: 'none' }}
         >
           ✕
         </button>
       )}
 
-      <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', margin: '0 0 10px 0' }}>Escáner de Tickets</h2>
+      <div className="text-center w-full mt-2">
+        <h2 className="text-xl font-bold tracking-tight text-neutral-100" style={{ fontFamily: 'var(--font-heading)' }}>
+          Escáner de Tickets
+        </h2>
+        <p className="text-xs text-neutral-400 mt-1">Coloca tu ticket dentro del recuadro para escanearlo</p>
+      </div>
 
       {/* Viewfinder area */}
       <div 
-        className="viewfinder"
-        style={{
-          width: '240px',
-          height: '240px',
-          position: 'relative',
-          backgroundColor: 'rgba(0, 0, 0, 0.4)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          borderRadius: '8px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
-        }}
+        className="viewfinder relative w-64 h-64 my-6 bg-black/40 border border-neutral-800/50 rounded-xl flex items-center justify-center overflow-hidden group transition-all"
       >
         {/* Corners using flat Sage Green */}
-        <div style={{ position: 'absolute', top: 0, left: 0, width: '20px', height: '20px', borderTop: '3px solid var(--color-sage, #5F8575)', borderLeft: '3px solid var(--color-sage, #5F8575)' }}></div>
-        <div style={{ position: 'absolute', top: 0, right: 0, width: '20px', height: '20px', borderTop: '3px solid var(--color-sage, #5F8575)', borderRight: '3px solid var(--color-sage, #5F8575)' }}></div>
-        <div style={{ position: 'absolute', bottom: 0, left: 0, width: '20px', height: '20px', borderBottom: '3px solid var(--color-sage, #5F8575)', borderLeft: '3px solid var(--color-sage, #5F8575)' }}></div>
-        <div style={{ position: 'absolute', bottom: 0, right: 0, width: '20px', height: '20px', borderBottom: '3px solid var(--color-sage, #5F8575)', borderRight: '3px solid var(--color-sage, #5F8575)' }}></div>
+        <div className="absolute top-0 left-0 w-6 h-6 border-t-3 border-l-3 border-[var(--color-sage)] rounded-tl-md"></div>
+        <div className="absolute top-0 right-0 w-6 h-6 border-t-3 border-r-3 border-[var(--color-sage)] rounded-tr-md"></div>
+        <div className="absolute bottom-0 left-0 w-6 h-6 border-b-3 border-l-3 border-[var(--color-sage)] rounded-bl-md"></div>
+        <div className="absolute bottom-0 right-0 w-6 h-6 border-b-3 border-r-3 border-[var(--color-sage)] rounded-br-md"></div>
 
-        {/* Scan line: flat sage green, zero blur or glow */}
+        {/* Scan line: glowing sage green laser beam */}
         {scanning && (
           <div 
-            className="scan-line"
+            className="scan-line absolute left-0 w-full h-1 bg-[var(--color-sage)] transition-all duration-200"
             style={{
-              position: 'absolute',
-              left: 0,
-              width: '100%',
-              height: '4px',
-              backgroundColor: 'var(--color-sage, #5F8575)',
               top: `${progress}%`,
-              transition: 'top 0.2s linear'
+              boxShadow: '0 0 10px 2px var(--color-sage), 0 0 4px 1px var(--color-sage)',
             }}
           />
         )}
 
-        <span style={{ fontSize: '0.875rem', color: '#a0aec0', textAlign: 'center', padding: '10px' }}>
-          {scanning ? `Escaneando... ${progress}%` : 'Alinea el ticket aquí'}
-        </span>
+        {/* Grid lines inside viewfinder to make it look like a camera screen */}
+        <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 opacity-10 pointer-events-none">
+          <div className="border-r border-b border-dashed border-white"></div>
+          <div className="border-r border-b border-dashed border-white"></div>
+          <div className="border-b border-dashed border-white"></div>
+          <div className="border-r border-b border-dashed border-white"></div>
+          <div className="border-r border-b border-dashed border-white"></div>
+          <div className="border-b border-dashed border-white"></div>
+          <div className="border-r border-dashed border-white"></div>
+          <div className="border-r border-dashed border-white"></div>
+          <div className="pointer-events-none"></div>
+        </div>
+
+        <div className="text-center p-4 z-10 select-none">
+          {scanning ? (
+            <div className="flex flex-col items-center gap-2">
+              <span className="text-sm font-semibold text-emerald-400 animate-pulse">Escaneando...</span>
+              <span className="text-xs font-mono text-neutral-400 bg-neutral-950/80 px-2 py-1 rounded border border-neutral-800">{progress}%</span>
+            </div>
+          ) : (
+            <span className="text-xs font-medium text-neutral-400 tracking-wide bg-neutral-950/60 px-3 py-2 rounded-lg backdrop-blur-sm border border-neutral-850">
+              Alinea el ticket aquí
+            </span>
+          )}
+        </div>
       </div>
 
       <button
         onClick={simulateScan}
         disabled={scanning}
-        style={{
-          backgroundColor: 'var(--color-sage, #5F8575)',
-          color: '#FFFFFF',
-          padding: '12px 24px',
-          border: '1px solid var(--color-sage, #5F8575)',
-          borderRadius: '8px',
-          fontWeight: 'bold',
-          cursor: scanning ? 'not-allowed' : 'pointer',
-          width: '100%',
-          opacity: scanning ? 0.7 : 1,
-          boxShadow: 'none' /* No neon/glow shadow */
-        }}
+        className={`w-full py-3.5 px-6 rounded-xl font-bold tracking-wide transition-all duration-200 cursor-pointer shadow-md ${
+          scanning
+            ? 'bg-neutral-850 text-neutral-500 cursor-not-allowed border border-neutral-800 shadow-none'
+            : 'bg-[var(--color-sage)] hover:bg-emerald-700 text-white border border-[var(--color-sage)] hover:border-emerald-700 active:scale-[0.99] hover:shadow-lg hover:shadow-emerald-950/30'
+        }`}
+        style={{ border: 'none' }}
       >
-        {scanning ? 'Procesando...' : 'Iniciar Escaneo'}
+        {scanning ? 'Procesando OCR...' : 'Iniciar Escaneo'}
       </button>
     </div>
   );
