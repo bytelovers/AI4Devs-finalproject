@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { convertToGrayscale, computeOtsuThreshold, binarizeImage } from './image.utils';
+import {
+  convertToGrayscale,
+  computeOtsuThreshold,
+  binarizeImage,
+  solveGaussian,
+  isConvexPolygon,
+  flattenReceipt
+} from './image.utils';
 
 describe('image.utils binarization algorithms', () => {
   it('should convert RGB pixels to grayscale correctly', () => {
@@ -78,3 +85,144 @@ describe('image.utils binarization algorithms', () => {
     expect(result.data[12]).toBe(255);
   });
 });
+
+describe('perspective-correction utilities', () => {
+  describe('solveGaussian', () => {
+    it('should solve a simple 2x2 system of equations', () => {
+      // 2x + y = 5
+      // -x + y = 2
+      // Solution: x = 1, y = 3
+      const A = [
+        [2, 1],
+        [-1, 1],
+      ];
+      const B = [5, 2];
+      const x = solveGaussian(A, B);
+      expect(x[0]).toBeCloseTo(1);
+      expect(x[1]).toBeCloseTo(3);
+    });
+
+    it('should solve a 3x3 system of equations', () => {
+      // 2x + y - z = 8
+      // -3x - y + 2z = -11
+      // -2x + y + 2z = -3
+      // Solution: x = 2, y = 3, z = -1
+      const A = [
+        [2, 1, -1],
+        [-3, -1, 2],
+        [-2, 1, 2],
+      ];
+      const B = [8, -11, -3];
+      const x = solveGaussian(A, B);
+      expect(x[0]).toBeCloseTo(2);
+      expect(x[1]).toBeCloseTo(3);
+      expect(x[2]).toBeCloseTo(-1);
+    });
+
+    it('should throw an error for singular matrix', () => {
+      const A = [
+        [1, 2],
+        [2, 4],
+      ];
+      const B = [3, 6];
+      expect(() => solveGaussian(A, B)).toThrow();
+    });
+  });
+
+  describe('isConvexPolygon', () => {
+    it('should return true for a perfect rectangle', () => {
+      const rect = [
+        { x: 0, y: 0 },
+        { x: 10, y: 0 },
+        { x: 10, y: 10 },
+        { x: 0, y: 10 },
+      ];
+      expect(isConvexPolygon(rect)).toBe(true);
+    });
+
+    it('should return true for a convex quad', () => {
+      const convex = [
+        { x: 0.1, y: 0.15 },
+        { x: 0.85, y: 0.05 },
+        { x: 0.9, y: 0.85 },
+        { x: 0.15, y: 0.95 },
+      ];
+      expect(isConvexPolygon(convex)).toBe(true);
+    });
+
+    it('should return false for a self-intersecting polygon', () => {
+      // Hourglass shape (crossed lines)
+      const crossed = [
+        { x: 0, y: 0 },
+        { x: 10, y: 10 },
+        { x: 10, y: 0 },
+        { x: 0, y: 10 },
+      ];
+      expect(isConvexPolygon(crossed)).toBe(false);
+    });
+
+    it('should return false for a non-convex shape (concave vertex)', () => {
+      // Dart/chevron shape
+      const concave = [
+        { x: 0, y: 0 },
+        { x: 10, y: 0 },
+        { x: 5, y: 5 }, // concave vertex indented inwards
+        { x: 0, y: 10 },
+      ];
+      expect(isConvexPolygon(concave)).toBe(false);
+    });
+  });
+
+  describe('flattenReceipt', () => {
+    it('should calculate correct output dimensions and run dewarping', () => {
+      // Mock getContext if it is not supported in jsdom
+      const originalGetContext = HTMLCanvasElement.prototype.getContext;
+      HTMLCanvasElement.prototype.getContext = function (type: string) {
+        if (type === '2d') {
+          return {
+            drawImage: () => {},
+            getImageData: (x: number, y: number, w: number, h: number) => {
+              return {
+                data: new Uint8ClampedArray(w * h * 4),
+                width: w,
+                height: h
+              } as any;
+            },
+            createImageData: (w: number, h: number) => {
+              return {
+                data: new Uint8ClampedArray(w * h * 4),
+                width: w,
+                height: h
+              } as any;
+            },
+            putImageData: () => {}
+          } as any;
+        }
+        return null;
+      };
+
+      try {
+        const srcCanvas = document.createElement('canvas');
+        srcCanvas.width = 2;
+        srcCanvas.height = 2;
+
+        const corners: [{x: number, y: number}, {x: number, y: number}, {x: number, y: number}, {x: number, y: number}] = [
+          { x: 0, y: 0 },
+          { x: 2, y: 0 },
+          { x: 2, y: 2 },
+          { x: 0, y: 2 },
+        ];
+
+        const resultCanvas = flattenReceipt(srcCanvas, corners);
+        expect(resultCanvas).toBeInstanceOf(HTMLCanvasElement);
+        // Width: max(dist(0,0 -> 2,0), dist(0,2 -> 2,2)) = max(2, 2) = 2
+        // Height: max(dist(0,0 -> 0,2), dist(2,0 -> 2,2)) = max(2, 2) = 2
+        expect(resultCanvas.width).toBe(2);
+        expect(resultCanvas.height).toBe(2);
+      } finally {
+        HTMLCanvasElement.prototype.getContext = originalGetContext;
+      }
+    });
+  });
+});
+
