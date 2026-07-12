@@ -2,28 +2,38 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './styles/variables.css';
 import './styles/global.css';
+import { AppShell } from '@/components/layout/AppShell';
+import { HomeView } from '@/views/HomeView';
+import { useAppStore } from '@/lib/store';
+import {
+  ContactsPlaceholder,
+  GroupsPlaceholder,
+  NewTicketPlaceholder,
+  TicketDetailPlaceholder,
+  SettingsPlaceholder,
+  FeatureFlagsPlaceholder,
+  GroupDetailPlaceholder,
+} from '@/views/PlaceholderViews';
 
-const App = () => {
+function AppRouter() {
+  const currentView = useAppStore((s) => s.currentView);
+
   return (
-    <main className="app-container" id="app-root-main">
-      <header className="app-header">
-        <h1 className="logo">SplitEat</h1>
-        <p className="subtitle">División inteligente de cuentas al céntimo</p>
-      </header>
-      <section className="welcome-card" id="welcome-info-card">
-        <h2>¡Proyecto inicializado con éxito!</h2>
-        <p>
-          El andamiaje de la aplicación React + TypeScript + Vitest + Tokens CSS se ha configurado
-          correctamente.
-        </p>
-        <div className="status-badge" id="status-badge-ready">Listo para el MVP Offline</div>
-      </section>
-    </main>
+    <AppShell>
+      {currentView === 'home' && <HomeView />}
+      {currentView === 'contacts' && <ContactsPlaceholder />}
+      {currentView === 'groups' && <GroupsPlaceholder />}
+      {currentView === 'new-ticket' && <NewTicketPlaceholder />}
+      {currentView === 'ticket-detail' && <TicketDetailPlaceholder />}
+      {currentView === 'settings' && <SettingsPlaceholder />}
+      {currentView === 'feature-flags' && <FeatureFlagsPlaceholder />}
+      {currentView === 'group-detail' && <GroupDetailPlaceholder />}
+    </AppShell>
   );
-};
+}
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <App />
+    <AppRouter />
   </React.StrictMode>
 );

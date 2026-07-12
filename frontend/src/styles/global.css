@@ -1,3 +1,35 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: var(--bg-primary);
+  --color-foreground: var(--text-primary);
+  --color-card: var(--bg-secondary);
+  --color-card-foreground: var(--text-primary);
+  --color-popover: var(--bg-secondary);
+  --color-popover-foreground: var(--text-primary);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--text-white);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--text-white);
+  --color-muted: var(--bg-tertiary);
+  --color-muted-foreground: var(--text-secondary);
+  --color-accent: var(--bg-tertiary);
+  --color-accent-foreground: var(--text-primary);
+  --color-destructive: var(--danger);
+  --color-destructive-foreground: var(--text-white);
+  --color-border: var(--border);
+  --color-input: var(--border);
+  --color-ring: var(--border-focus);
+  --color-sidebar: var(--bg-secondary);
+  --color-sidebar-foreground: var(--text-primary);
+  --color-sidebar-accent: var(--bg-tertiary);
+  --color-sidebar-accent-foreground: var(--text-primary);
+  --color-sidebar-border: var(--border);
+  --color-sidebar-ring: var(--border-focus);
+  --font-sans: var(--font-body);
+  --font-heading: var(--font-heading);
+}
+
 /* Reset and Base Styles - SplitEat */
 
 *,
@@ -395,6 +427,26 @@ button:active {
 /* ─── QR Code Dark Mode Optimization ──────────────────────────────── */
 .dark .qr-container {
   filter: invert(1) hue-rotate(180deg);
+}
+/* ────────────────────────────────────────────────────────────────── */
+
+/* ─── Safe Area Utilities for Mobile ──────────────────────────────── */
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.safe-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* ─── Hide Scrollbar Utility ──────────────────────────────────────── */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 /* ────────────────────────────────────────────────────────────────── */
 
