@@ -7,7 +7,7 @@
  *   3. OCR worker processes the image via Comlink
  *   4. Scan result is stored as a draft ticket via useAppStore
  *
- * Reuses the singleton Comlink worker pattern from OCRScanner.tsx.
+ * Reuses the singleton Comlink worker pattern for the OCR pipeline.
  */
 
 import React, { useState, useCallback, useRef, useEffect } from 'react'
@@ -29,7 +29,7 @@ export interface CameraScanFlowProps {
   onTicketCreated?: (ticketId: string) => void
 }
 
-// Singleton Comlink worker proxy (matches pattern from OCRScanner.tsx)
+// Singleton Comlink worker proxy
 let workerInstance: Comlink.Remote<OCRWorkerType> | null = null
 function getWorker(): Comlink.Remote<OCRWorkerType> {
   if (!workerInstance) {
