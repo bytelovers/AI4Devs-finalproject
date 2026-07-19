@@ -219,9 +219,9 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
       </div>
 
       {error && (
-        <div className="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 flex items-start gap-2">
-          <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-          <p className="text-sm text-amber-700">{error}</p>
+        <div className="mb-4 p-3 rounded-lg bg-warning-bg border border-warning-border flex items-start gap-2">
+          <AlertCircle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+          <p className="text-sm text-warning-foreground">{error}</p>
         </div>
       )}
 

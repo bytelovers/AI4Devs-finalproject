@@ -62,6 +62,11 @@
   --accent: oklch(0.95 0.04 162);
   --accent-foreground: oklch(0.35 0.12 162);
   --destructive: oklch(0.577 0.245 27.325);
+  /* Warning/Amber colors for light mode */
+  --warning: oklch(0.55 0.15 80);
+  --warning-foreground: oklch(0.98 0.01 80);
+  --warning-bg: oklch(0.97 0.05 80);
+  --warning-border: oklch(0.7 0.15 80);
   --border: oklch(0.92 0.005 240);
   --input: oklch(0.94 0.005 240);
   --ring: oklch(0.62 0.15 162);
@@ -97,6 +102,11 @@
   --accent: oklch(0.3 0.05 162);
   --accent-foreground: oklch(0.9 0.05 162);
   --destructive: oklch(0.704 0.191 22.216);
+  /* Warning/Amber colors for dark mode - brighter for contrast */
+  --warning: oklch(0.85 0.15 80);
+  --warning-foreground: oklch(0.15 0.01 80);
+  --warning-bg: oklch(0.35 0.1 80);
+  --warning-border: oklch(0.6 0.15 80);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.72 0.16 162);
@@ -124,19 +134,33 @@
     -webkit-tap-highlight-color: transparent;
     overscroll-behavior-y: none;
   }
-  /* Safe area for PWA */
-  .safe-top {
-    padding-top: env(safe-area-inset-top);
-  }
-  .safe-bottom {
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-  /* Hide scrollbars but keep functionality */
-  .no-scrollbar::-webkit-scrollbar {
-    display: none;
-  }
-  .no-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
+/* Warning/Amber semantic colors for warnings and amber text */
+.text-warning {
+  color: var(--warning);
+}
+.bg-warning {
+  background-color: var(--warning-bg);
+}
+.border-warning {
+  border-color: var(--warning-border);
+}
+.text-warning-foreground {
+  color: var(--warning-foreground);
+}
+
+/* Safe area for PWA */
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+/* Hide scrollbars but keep functionality */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
 }

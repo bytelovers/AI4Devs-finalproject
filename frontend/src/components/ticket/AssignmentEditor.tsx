@@ -278,10 +278,10 @@ function ItemAssignmentRow({
         className={cn(
           'p-3 transition-colors hover:bg-accent/30',
           item.assignments.length === 0
-            ? 'border-amber-300 bg-amber-50/40'
+            ? 'border-warning-border bg-warning-bg/60'
             : isFullyAssigned
             ? 'border-primary/30 bg-accent/20'
-            : 'border-amber-300 bg-amber-50/40'
+            : 'border-warning-border bg-warning-bg/60'
         )}
       >
         <div className="flex items-start justify-between gap-2">
@@ -330,17 +330,17 @@ function ItemAssignmentRow({
               )
             })}
             {!isFullyAssigned && (
-              <p className="text-xs text-amber-600 font-medium pt-0.5">
+              <p className="text-xs text-warning-foreground font-medium pt-0.5">
                 ⚠ Pesos no suman 100% ({(totalWeight * 100).toFixed(0)}%)
               </p>
             )}
           </div>
         ) : (
           <div className="mt-2 pt-2 border-t border-border/60">
-            <p className="text-xs text-amber-600 font-medium flex items-center gap-1">
-              <Plus className="h-3 w-3" />
-              Toca para asignar
-            </p>
+            <p className="text-xs text-warning-foreground font-medium flex items-center gap-1">
+                <Plus className="h-3 w-3" />
+                Toca para asignar
+              </p>
           </div>
         )}
       </Card>
@@ -647,7 +647,7 @@ function ItemAssignmentSheet({
               'text-sm font-semibold',
               Math.abs(totalWeight - 1) < 0.01
                 ? 'text-primary'
-                : 'text-amber-600'
+                : 'text-warning-foreground'
             )}
           >
             {formatEUR(total * Math.min(totalWeight, 1))} ·{' '}

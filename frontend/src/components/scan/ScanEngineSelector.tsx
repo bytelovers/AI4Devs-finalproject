@@ -163,7 +163,7 @@ export function ScanEngineSelector({ detailed = false }: { detailed?: boolean })
                     </span>
                   )}
                   {isFlorenceUnavailable && (
-                    <span className="text-amber-600">Requiere WebGPU</span>
+                    <span className="text-warning-foreground">Requiere WebGPU</span>
                   )}
                 </div>
 
@@ -171,7 +171,7 @@ export function ScanEngineSelector({ detailed = false }: { detailed?: boolean })
                   <>
                     <div className="mt-2 text-[10px] text-muted-foreground/70">
                       {engine.precision && (
-                        <span className={engine.precision === 'Alta' ? 'text-primary' : engine.precision === 'Media-Alta' ? 'text-primary/70' : engine.precision === 'Media' ? 'text-amber-600' : 'text-muted-foreground'}>
+                        <span className={engine.precision === 'Alta' ? 'text-primary' : engine.precision === 'Media-Alta' ? 'text-primary/70' : engine.precision === 'Media' ? 'text-warning-foreground' : 'text-muted-foreground'}>
                           Precisión {engine.precision}
                         </span>
                       )}
@@ -185,7 +185,7 @@ export function ScanEngineSelector({ detailed = false }: { detailed?: boolean })
                         </>
                       )}
                       {isFlorenceUnavailable && (
-                        <span className="text-amber-600">Requiere WebGPU</span>
+                        <span className="text-warning-foreground">Requiere WebGPU</span>
                       )}
                     </div>
                   </>

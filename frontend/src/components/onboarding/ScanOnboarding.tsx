@@ -272,7 +272,7 @@ export function ScanOnboarding({ open, onClose, onUseServer, onUseTesseract, onU
                   </div>
 
                   {florenceEngine.status === 'unavailable' ? (
-                    <div className="flex items-center gap-2 text-xs text-amber-600">
+                    <div className="flex items-center gap-2 text-xs text-warning-foreground">
                       <AlertCircle className="h-4 w-4" />
                       <span>
                         Tu navegador no soporta WebGPU. Usa Chrome/Edge Android

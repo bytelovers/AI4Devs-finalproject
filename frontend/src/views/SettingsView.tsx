@@ -8,13 +8,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -43,6 +36,7 @@ import {
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { formatEUR, calcTicketTotal } from '@/lib/calc'
+import { ScanEngineSelector } from '@/components/scan/ScanEngineSelector'
 
 export function SettingsView() {
   const settings = useAppStore((s) => s.settings)
@@ -54,7 +48,7 @@ export function SettingsView() {
   const groups = useAppStore((s) => s.groups)
   const exportData = useAppStore((s) => s.exportData)
   const importData = useAppStore((s) => s.importData)
-  const clearAllData = useAppStore((s) => s.clearAllData)
+  const resetAll = useAppStore((s) => s.resetAll)
 
   const totalExpenses = tickets.reduce((sum, t) => sum + calcTicketTotal(t), 0)
 
@@ -76,40 +70,7 @@ export function SettingsView() {
             </p>
           </div>
         </div>
-        <Select
-          value={settings.preferredEngine}
-          onValueChange={(v) => updateSettings({ preferredEngine: v as any })}
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="server">
-              <div className="flex flex-col gap-0.5">
-                <span className="font-medium">IA en la nube</span>
-                <span className="text-xs text-muted-foreground">Más preciso, requiere conexión</span>
-              </div>
-            </SelectItem>
-            <SelectItem value="tesseract">
-              <div className="flex flex-col gap-0.5">
-                <span className="font-medium">Escaneo básico</span>
-                <span className="text-xs text-muted-foreground">OCR local (Tesseract.js)</span>
-              </div>
-            </SelectItem>
-            <SelectItem value="tesseract-ner">
-              <div className="flex flex-col gap-0.5">
-                <span className="font-medium">Escaneo con IA</span>
-                <span className="text-xs text-muted-foreground">OCR local + NER para estructurar</span>
-              </div>
-            </SelectItem>
-            <SelectItem value="florence2">
-              <div className="flex flex-col gap-0.5">
-                <span className="font-medium">Escaneo avanzado</span>
-                <span className="text-xs text-muted-foreground">Florence-2 local (experimental)</span>
-              </div>
-            </SelectItem>
-          </SelectContent>
-        </Select>
+        <ScanEngineSelector detailed />
       </Card>
 
       {/* Flags experimentales */}
@@ -250,7 +211,7 @@ export function SettingsView() {
                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
                 <AlertDialogAction
                   onClick={() => {
-                    clearAllData()
+                    resetAll()
                     toast.success('Todos los datos eliminados')
                   }}
                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"

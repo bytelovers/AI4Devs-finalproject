@@ -582,14 +582,14 @@ export function ScanErrorBanner({
   onRetry: () => void
 }) {
   return (
-    <Card className="p-4 border-amber-300 bg-amber-50">
+    <Card className="p-4 border-warning-border bg-warning-bg/60">
       <div className="flex gap-3">
-        <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+        <AlertCircle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
         <div className="flex-1">
-          <p className="text-sm font-medium text-amber-900 mb-1">
+          <p className="text-sm font-medium text-warning-foreground mb-1">
             No se pudo escanear el ticket
           </p>
-          <p className="text-xs text-amber-700 mb-2">{message}</p>
+          <p className="text-xs text-warning-foreground/80 mb-2">{message}</p>
           <Button size="sm" variant="outline" onClick={onRetry}>
             <Camera className="h-4 w-4 mr-1.5" />
             Reintentar

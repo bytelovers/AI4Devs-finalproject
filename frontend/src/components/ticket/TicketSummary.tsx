@@ -8,6 +8,7 @@ import {
   verifyCuadre,
   calcTicketTotal,
   itemsFullyAssigned,
+  calcTaxAmount,
 } from '@/lib/calc'
 import type { Ticket } from '@/lib/types'
 import { Avatar } from '@/components/ui/Avatar'
@@ -21,6 +22,7 @@ import {
   RotateCcw,
   Trash2,
   Receipt,
+  Calculator,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -46,6 +48,8 @@ export function TicketSummary({
   const cuadre = verifyCuadre(ticket)
   const itemsStatus = itemsFullyAssigned(ticket)
   const total = calcTicketTotal(ticket)
+  const taxIncluded = ticket.taxMode === 'included'
+  const baseImponible = taxIncluded ? total - ticket.taxAmount - ticket.tipAmount : total - ticket.taxAmount - ticket.tipAmount
 
   const handleClose = () => {
     updateTicket(ticket.id, { status: 'closed' })
@@ -116,14 +120,14 @@ export function TicketSummary({
           'p-4 border-2',
           cuadre.ok && itemsStatus.allAssigned
             ? 'border-primary/40 bg-accent/30'
-            : 'border-amber-300 bg-amber-50/60'
+            : 'border-warning-border bg-warning-bg/60'
         )}
       >
         <div className="flex items-start gap-3">
           {cuadre.ok && itemsStatus.allAssigned ? (
             <CheckCircle2 className="h-6 w-6 text-primary shrink-0" />
           ) : (
-            <AlertTriangle className="h-6 w-6 text-amber-500 shrink-0" />
+            <AlertTriangle className="h-6 w-6 text-warning shrink-0" />
           )}
           <div className="flex-1">
             {cuadre.ok && itemsStatus.allAssigned ? (
@@ -138,10 +142,10 @@ export function TicketSummary({
               </>
             ) : (
               <>
-                <p className="font-semibold text-amber-700">
+                <p className="font-semibold text-warning-foreground">
                   El ticket no cuadra todavía
                 </p>
-                <ul className="text-xs text-amber-700/80 mt-1 space-y-0.5 list-disc list-inside">
+                <ul className="text-xs text-warning-foreground/80 mt-1 space-y-0.5 list-disc list-inside">
                   {!itemsStatus.allAssigned && (
                     <li>
                       Hay {itemsStatus.unassignedItems.length}{' '}
@@ -257,7 +261,7 @@ export function TicketSummary({
                 'font-bold',
                 Math.abs(cuadre.diff) < 0.01
                   ? 'text-primary'
-                  : 'text-amber-600'
+                  : 'text-warning-foreground'
               )}
             >
               {formatEUR(cuadre.diff)}
@@ -265,6 +269,22 @@ export function TicketSummary({
           </div>
         </div>
       </Card>
+
+      {/* Base imponible (cuando IVA incluido) */}
+      {taxIncluded && (
+        <Card className="p-4 bg-primary/5 border-primary/20">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Calculator className="h-4 w-4 text-primary" />
+              <span className="font-semibold text-foreground">Base imponible</span>
+            </div>
+            <span className="text-lg font-bold text-primary">{formatEUR(baseImponible)}</span>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Importe sin IVA ni propina. IVA ({ticket.taxRate * 100}%) ya incluido en el total.
+          </p>
+        </Card>
+      )}
 
       {/* Acciones */}
       {showActions && (
