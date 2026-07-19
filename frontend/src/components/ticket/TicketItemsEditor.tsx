@@ -303,10 +303,10 @@ export function TicketItemsEditor({ ticket }: TicketItemsEditorProps) {
               return (
                 <div
                   key={discount.id}
-                  className="p-2.5 rounded-md bg-emerald-50/40 border border-emerald-200/50 space-y-2"
+                  className="p-2.5 rounded-md bg-primary/10 border border-primary/20 space-y-2"
                 >
                   <div className="flex gap-2 items-center">
-                    <Minus className="h-4 w-4 text-emerald-600 shrink-0" />
+                    <Minus className="h-4 w-4 text-primary shrink-0" />
                     <Input
                       value={discount.name}
                       onChange={(e) =>
@@ -381,7 +381,7 @@ export function TicketItemsEditor({ ticket }: TicketItemsEditorProps) {
                       <span className="text-muted-foreground">
                         Equivale a
                       </span>
-                      <span className="font-medium text-emerald-600">
+                      <span className="font-medium text-primary">
                         −{formatEUR(effectiveAmount)}
                       </span>
                     </div>
@@ -393,10 +393,10 @@ export function TicketItemsEditor({ ticket }: TicketItemsEditorProps) {
         )}
         {discountsTotal > 0 && (
           <div className="flex justify-between text-sm pt-1 border-t border-border">
-            <span className="text-emerald-600 font-medium">
+            <span className="font-medium text-primary">
               Total descuentos
             </span>
-            <span className="font-semibold text-emerald-600">
+            <span className="font-semibold text-primary">
               −{formatEUR(discountsTotal)}
             </span>
           </div>
@@ -413,7 +413,7 @@ export function TicketItemsEditor({ ticket }: TicketItemsEditorProps) {
             </span>
           </div>
           {discountsTotal > 0 && (
-            <div className="flex justify-between text-emerald-600">
+            <div className="flex justify-between text-primary">
               <span>Descuentos</span>
               <span className="font-medium">
                 −{formatEUR(discountsTotal)}

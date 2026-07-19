@@ -445,8 +445,8 @@ export function NewTicketView() {
               Motor: {engineLabel}
             </div>
           ) : (
-            <div className="flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-full bg-amber-50 border border-amber-200 text-xs text-amber-700 font-medium">
-              <span className="h-2 w-2 rounded-full bg-amber-500" />
+            <div className="flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-full bg-warning-bg border border-warning-border text-xs text-warning-foreground font-medium">
+              <span className="h-2 w-2 rounded-full bg-warning" />
               Sin motor seleccionado · Ve a Ajustes → Configuración
             </div>
           )}
@@ -665,7 +665,7 @@ export function NewTicketView() {
             </p>
           )}
           {!canProceed() && step === 'assign' && (
-            <p className="text-xs text-amber-600 text-center mt-2">
+            <p className="text-xs text-warning-foreground text-center mt-2">
               Asigna todos los items antes de continuar
             </p>
           )}

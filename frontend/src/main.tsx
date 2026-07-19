@@ -11,21 +11,25 @@ import { GroupsView, GroupDetailView } from '@/views/GroupsView';
 import { TicketDetailView } from '@/views/TicketDetailView';
 import { SettingsView } from '@/views/SettingsView';
 import { FeatureFlagsView } from '@/views/FeatureFlagsView';
+import { ServiceWorkerRegister } from '@/components/pwa/ServiceWorkerRegister';
 
 function AppRouter() {
   const currentView = useAppStore((s) => s.currentView);
 
   return (
-    <AppShell>
-      {currentView === 'home' && <HomeView />}
-      {currentView === 'contacts' && <ContactsView />}
-      {currentView === 'groups' && <GroupsView />}
-      {currentView === 'new-ticket' && <NewTicketView />}
-      {currentView === 'ticket-detail' && <TicketDetailView />}
-      {currentView === 'settings' && <SettingsView />}
-      {currentView === 'feature-flags' && <FeatureFlagsView />}
-      {currentView === 'group-detail' && <GroupDetailView />}
-    </AppShell>
+    <>
+      <ServiceWorkerRegister />
+      <AppShell>
+        {currentView === 'home' && <HomeView />}
+        {currentView === 'contacts' && <ContactsView />}
+        {currentView === 'groups' && <GroupsView />}
+        {currentView === 'new-ticket' && <NewTicketView />}
+        {currentView === 'ticket-detail' && <TicketDetailView />}
+        {currentView === 'settings' && <SettingsView />}
+        {currentView === 'feature-flags' && <FeatureFlagsView />}
+        {currentView === 'group-detail' && <GroupDetailView />}
+      </AppShell>
+    </>
   );
 }
 
