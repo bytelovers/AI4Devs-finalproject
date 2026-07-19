@@ -290,7 +290,7 @@ export function NewTicketView() {
           const result = await processWithNer(
             tesseractResult.rawText ?? '',
             tesseractResult.preprocessedImageDataUrl,
-            image,
+            imageDataUrl,
             (p) => setScanProgress(p)
           )
           setScanEngineUsed('tesseract-ner')
