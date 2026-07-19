@@ -1,7 +1,9 @@
+'use client'
+
 import { useState } from 'react'
 import { useAppStore } from '@/lib/store'
 import { PageHeader, EmptyState } from '@/components/ui/EmptyState'
-import { Avatar, AvatarStack } from '@/components/ui/AvatarStack'
+import { Avatar, AvatarStack } from '@/components/ui/Avatar'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -29,9 +31,12 @@ import {
   FolderPlus,
   Trash2,
   Users,
+  ChevronRight,
   UserPlus,
+  Check,
   Pencil,
 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 
 export function GroupsView() {
@@ -171,7 +176,7 @@ export function GroupsView() {
                       <AlertDialogContent>
                         <AlertDialogHeader>
                           <AlertDialogTitle>
-                            ¿Eliminar el grupo &ldquo;{group.name}&rdquo;?
+                            ¿Eliminar el grupo "{group.name}"?
                           </AlertDialogTitle>
                           <AlertDialogDescription>
                             Los miembros seguirán existiendo como contactos, pero
@@ -308,7 +313,7 @@ export function GroupDetailView() {
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent side="bottom" className="rounded-t-2xl max-h-[80vh] overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>Añadir miembros a &ldquo;{group.name}&rdquo;</SheetTitle>
+            <SheetTitle>Añadir miembros a "{group.name}"</SheetTitle>
           </SheetHeader>
           <div className="px-4 pb-6 space-y-1.5">
             {nonMembers.length === 0 ? (

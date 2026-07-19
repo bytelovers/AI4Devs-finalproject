@@ -1,3 +1,5 @@
+'use client'
+
 import { useAppStore } from '@/lib/store'
 import {
   formatEUR,
@@ -8,13 +10,14 @@ import {
   itemsFullyAssigned,
 } from '@/lib/calc'
 import type { Ticket } from '@/lib/types'
-import { Avatar } from '@/components/ui/AvatarStack'
+import { Avatar } from '@/components/ui/Avatar'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
   CheckCircle2,
   AlertTriangle,
   Share2,
+  Download,
   RotateCcw,
   Trash2,
   Receipt,

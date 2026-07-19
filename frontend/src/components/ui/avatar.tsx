@@ -1,52 +1,74 @@
+import { cn } from '@/lib/utils'
+import type { Person } from '@/lib/types'
 
-import * as React from "react"
-import * as AvatarPrimitive from "@radix-ui/react-avatar"
+interface AvatarProps {
+  person?: Person
+  name?: string
+  color?: string
+  initials?: string
+  size?: 'xs' | 'sm' | 'md' | 'lg'
+  className?: string
+}
 
-import { cn } from "@/lib/utils"
+const SIZES: Record<NonNullable<AvatarProps['size']>, string> = {
+  xs: 'h-6 w-6 text-[10px]',
+  sm: 'h-8 w-8 text-xs',
+  md: 'h-10 w-10 text-sm',
+  lg: 'h-14 w-14 text-base',
+}
 
-function Avatar({
+export function Avatar({
+  person,
+  name,
+  color,
+  initials,
+  size = 'sm',
   className,
-  ...props
-}: React.ComponentProps<typeof AvatarPrimitive.Root>) {
+}: AvatarProps) {
+  const c = person?.color ?? color ?? '#10b981'
+  const init = person?.initials ?? initials ?? name?.slice(0, 2).toUpperCase() ?? '?'
   return (
-    <AvatarPrimitive.Root
-      data-slot="avatar"
+    <div
       className={cn(
-        "relative flex size-8 shrink-0 overflow-hidden rounded-full",
+        'inline-flex items-center justify-center rounded-full font-semibold text-white shrink-0 ring-2 ring-white/80',
+        SIZES[size],
         className
       )}
-      {...props}
-    />
+      style={{ backgroundColor: c }}
+      aria-label={person?.name ?? name}
+    >
+      {init}
+    </div>
   )
 }
 
-function AvatarImage({
-  className,
-  ...props
-}: React.ComponentProps<typeof AvatarPrimitive.Image>) {
+/** Pila de avatares (overlapping). */
+export function AvatarStack({
+  people,
+  max = 4,
+  size = 'sm',
+}: {
+  people: Person[]
+  max?: number
+  size?: AvatarProps['size']
+}) {
+  const visible = people.slice(0, max)
+  const extra = people.length - visible.length
   return (
-    <AvatarPrimitive.Image
-      data-slot="avatar-image"
-      className={cn("aspect-square size-full", className)}
-      {...props}
-    />
-  )
-}
-
-function AvatarFallback({
-  className,
-  ...props
-}: React.ComponentProps<typeof AvatarPrimitive.Fallback>) {
-  return (
-    <AvatarPrimitive.Fallback
-      data-slot="avatar-fallback"
-      className={cn(
-        "bg-muted flex size-full items-center justify-center rounded-full",
-        className
+    <div className="flex items-center -space-x-2">
+      {visible.map((p) => (
+        <Avatar key={p.id} person={p} size={size} />
+      ))}
+      {extra > 0 && (
+        <div
+          className={cn(
+            'inline-flex items-center justify-center rounded-full font-semibold text-white bg-muted-foreground ring-2 ring-white',
+            SIZES[size!]
+          )}
+        >
+          +{extra}
+        </div>
       )}
-      {...props}
-    />
+    </div>
   )
 }
-
-export { Avatar, AvatarImage, AvatarFallback }

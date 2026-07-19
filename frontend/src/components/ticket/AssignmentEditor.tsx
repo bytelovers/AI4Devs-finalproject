@@ -1,7 +1,9 @@
+'use client'
+
 import { useAppStore } from '@/lib/store'
 import { formatEUR, itemLineTotal } from '@/lib/calc'
 import type { Ticket, TicketItem, ID, AssignmentMode } from '@/lib/types'
-import { Avatar } from '@/components/ui/AvatarStack'
+import { Avatar } from '@/components/ui/Avatar'
 import { PeopleGroupsManager } from '@/components/people/PeopleGroupsManager'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -13,12 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet'
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { useState } from 'react'
 import {
   User,

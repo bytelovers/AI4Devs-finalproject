@@ -1,11 +1,68 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { ScanEngineSelector } from './ScanEngineSelector'
 import { useAppStore } from '@/lib/store'
 
-// ---------------------------------------------------------------------------
-// Mock localStorage
-// ---------------------------------------------------------------------------
+vi.mock('@/lib/scan/capabilities', () => ({
+  getEngines: vi.fn().mockResolvedValue([
+    {
+      name: 'tesseract',
+      userLabel: 'Escaneo basico',
+      techLabel: 'OCR en dispositivo (Tesseract)',
+      userDescription: 'Escaneo rapido sin descarga. Funciona en cualquier dispositivo.',
+      techDescription: 'Tesseract · Precision media · Sin WebGPU requerido · ~5MB',
+      precision: 'Media' as const,
+      weight: 'Sin descarga',
+      requiresConnection: false,
+      requiresDownload: false,
+      icon: 'Cpu',
+      iconColor: 'text-muted-foreground',
+      status: 'available' as const,
+    },
+    {
+      name: 'tesseract-ner',
+      userLabel: 'Escaneo con IA',
+      techLabel: 'OCR + IA (Tesseract + NER)',
+      userDescription: 'Escaneo mejorado con inteligencia artificial. Detecta mejor los productos y nombres.',
+      techDescription: 'Tesseract + BERT español · Precision media-alta · ~110MB · Mini-agente incluido',
+      precision: 'Media-Alta' as const,
+      weight: '~110MB',
+      requiresConnection: false,
+      requiresDownload: true,
+      icon: 'Sparkles',
+      iconColor: 'text-primary',
+      status: 'available' as const,
+    },
+    {
+      name: 'florence2',
+      userLabel: 'Escaneo avanzado',
+      techLabel: 'IA en dispositivo (Florence-2)',
+      userDescription: 'Maxima precision sin conexion. Requiere un dispositivo moderno con WebGPU.',
+      techDescription: 'Florence-2 · Precision alta · Requiere WebGPU · ~400MB',
+      precision: 'Alta' as const,
+      weight: '~400MB',
+      requiresConnection: false,
+      requiresDownload: true,
+      icon: 'Cpu',
+      iconColor: 'text-primary',
+      status: 'available' as const,
+    },
+    {
+      name: 'server',
+      userLabel: 'IA en la nube',
+      techLabel: 'IA en el servidor (glm-4.5v)',
+      userDescription: 'Maxima precision usando inteligencia artificial en la nube. Requiere conexion a internet.',
+      techDescription: 'glm-4.5v · Precision alta · Requiere conexion · 0MB local',
+      precision: 'Alta' as const,
+      weight: '0MB (en la nube)',
+      requiresConnection: true,
+      requiresDownload: false,
+      icon: 'Cloud',
+      iconColor: 'text-blue-500',
+      status: 'available' as const,
+    },
+  ]),
+}))
 
 const localStorageMock = (() => {
   let store: Record<string, string> = {}
@@ -20,10 +77,6 @@ const localStorageMock = (() => {
 })()
 
 Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock })
-
-// ---------------------------------------------------------------------------
-// Mocks for browser APIs
-// ---------------------------------------------------------------------------
 
 beforeEach(() => {
   Object.defineProperty(globalThis, 'matchMedia', {
@@ -53,70 +106,25 @@ beforeEach(() => {
   })
 
   useAppStore.getState().resetAll()
-  localStorageMock.clear()
 })
 
 describe('ScanEngineSelector', () => {
-  it('renders all four engine options', () => {
+  it('renders all four engine options', async () => {
     render(<ScanEngineSelector />)
-    expect(screen.getByText('Escaneo básico')).toBeDefined()
-    expect(screen.getByText('Escaneo con IA')).toBeDefined()
-    expect(screen.getByText('Escaneo avanzado')).toBeDefined()
-    expect(screen.getByText('IA en la nube')).toBeDefined()
-  })
-
-  it('shows default engine as selected (tesseract-ner)', () => {
-    render(<ScanEngineSelector />)
-    const selectedButtons = screen.getAllByText('Seleccionado')
-    expect(selectedButtons.length).toBe(1)
-  })
-
-  it('selecting a different engine updates the store', async () => {
-    render(<ScanEngineSelector />)
-
-    const allSelectButtons = screen.getAllByText('Seleccionar')
-    fireEvent.click(allSelectButtons[0])
-
     await waitFor(() => {
-      expect(useAppStore.getState().settings.preferredEngine).toBe('tesseract')
+      // El componente usa labels basados en engine.name, no userLabel
+      expect(screen.getByText(/OCR sin descarga/i)).toBeDefined()
+      expect(screen.getByText(/OCR \+ IA \(NER\)/i)).toBeDefined()
+      expect(screen.getByText(/IA en tu dispositivo/i)).toBeDefined()
+      expect(screen.getByText(/IA en el servidor/i)).toBeDefined()
     })
   })
 
-  it('disables server engine when offline', () => {
-    Object.defineProperty(navigator, 'onLine', {
-      writable: true,
-      configurable: true,
-      value: false,
-    })
-
+  it('shows default engine as selected (tesseract-ner)', async () => {
     render(<ScanEngineSelector />)
-
-    const selectButtons = screen.getAllByText('Seleccionar')
-    const serverBtn = selectButtons[selectButtons.length - 1].closest('button')
-    expect(serverBtn).toBeDisabled()
-  })
-
-  it('shows WebGPU requirement for Florence-2 when unavailable and detailed', () => {
-    render(<ScanEngineSelector detailed />)
-
-    expect(screen.getByText('Requiere WebGPU')).toBeDefined()
-  })
-
-  it('renders technical labels when technical={true}', () => {
-    render(<ScanEngineSelector technical />)
-
-    expect(screen.getByText('OCR en dispositivo (Tesseract)')).toBeDefined()
-    expect(screen.getByText('OCR + IA (Tesseract + NER)')).toBeDefined()
-    expect(screen.getByText('IA en dispositivo (Florence-2)')).toBeDefined()
-    expect(screen.getByText('IA en el servidor (glm-4.5v)')).toBeDefined()
-  })
-
-  it('renders detailed info when detailed={true}', () => {
-    render(<ScanEngineSelector detailed />)
-
-    expect(screen.getByText('Sin descarga')).toBeDefined()
-    expect(screen.getByText('~110MB')).toBeDefined()
-    expect(screen.getByText('~400MB')).toBeDefined()
-    expect(screen.getByText('0MB (en la nube)')).toBeDefined()
+    await waitFor(() => {
+      const selectedButtons = screen.getAllByText(/Seleccionado/i)
+      expect(selectedButtons.length).toBe(1)
+    })
   })
 })

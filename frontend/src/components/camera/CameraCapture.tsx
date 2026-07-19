@@ -1,95 +1,170 @@
-/**
- * CameraCapture — Camera capture orchestrator
- *
- * Manages the capture flow: live camera preview → capture → review → confirm/retry.
- * Uses the `useCamera` hook for stream lifecycle and `CameraViewfinder` for overlay.
- *
- * Adapted from the Cuadra project camera-capture component:
- *   - Removed next-themes dependency (uses CSS variables)
- *   - Extracted camera lifecycle into useCamera hook
- *   - Added CameraViewfinder overlay component
- *   - Native camera and upload fallbacks deferred (visible but disabled)
- */
-
-import React, { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
+import { Button } from '@/components/ui/button'
 import {
   Camera,
+  Upload,
   X,
   RefreshCw,
   Image as ImageIcon,
+  Loader2,
   SwitchCamera,
   AlertCircle,
-  Loader2,
-  Upload,
 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { useCamera } from '@/hooks/useCamera'
-import { CameraViewfinder } from './CameraViewfinder'
 
-export interface CameraCaptureProps {
-  /** Called when the user confirms a captured image. */
+interface CameraCaptureProps {
   onCapture: (dataUrl: string) => void
-  /** Called when the user cancels the camera flow. */
   onCancel: () => void
-  /** Optional close handler overlay. */
-  onClose?: () => void
 }
 
-type CaptureMode = 'live' | 'preview'
+type CaptureMode = 'live' | 'native' | 'upload' | 'preview'
 
+/**
+ * Componente para capturar imagen de un ticket.
+ *
+ * Modos de captura:
+ * 1. **Cámara en vivo** (preferido en móvil): vista previa con getUserMedia,
+ *    botón de captura, switch cámara frontal/trasera.
+ * 2. **Cámara nativa** (fallback): input capture="environment" que abre la
+ *    app de cámara nativa del dispositivo.
+ * 3. **Subir archivo**: input file normal para elegir imagen de la galería.
+ */
 export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
   const [mode, setMode] = useState<CaptureMode>('live')
   const [preview, setPreview] = useState<string | null>(null)
-  const [errorDismissed, setErrorDismissed] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [cameraReady, setCameraReady] = useState(false)
+  const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment')
 
   const videoRef = useRef<HTMLVideoElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const {
-    startCamera,
-    stopCamera,
-    captureFrame,
-    cameraReady,
-    error,
-    facingMode,
-    switchFacingMode,
-  } = useCamera()
+  // Iniciar cámara en vivo
+  const startCamera = useCallback(async () => {
+    setError(null)
+    setCameraReady(false)
+    try {
+      // Parar stream anterior si existe
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop())
+        streamRef.current = null
+      }
 
-  // Start camera on mount
-  useEffect(() => {
-    startCamera()
-  }, [startCamera])
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: facingMode },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+        },
+        audio: false,
+      })
 
-  // Reset error dismissed state when error changes
-  useEffect(() => {
-    if (error) setErrorDismissed(false)
-  }, [error])
-
-  const handleCapture = useCallback(() => {
-    const dataUrl = captureFrame(videoRef)
-    if (dataUrl) {
-      stopCamera()
-      setPreview(dataUrl)
-      setMode('preview')
+      streamRef.current = stream
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        videoRef.current.onloadedmetadata = () => {
+          videoRef.current?.play()
+          setCameraReady(true)
+        }
+      }
+    } catch (err) {
+      console.warn('[camera] getUserMedia falló:', err)
+      const msg = err instanceof Error ? err.message : 'Error desconocido'
+      if (msg.includes('Permission') || msg.includes('denied')) {
+        setError('Permiso de cámara denegado. Permite el acceso o usa la cámara nativa.')
+      } else if (msg.includes('NotFound') || msg.includes('device')) {
+        setError('No se encontró cámara. Usa la cámara nativa o sube una imagen.')
+      } else {
+        setError('No se pudo iniciar la cámara. Usa la cámara nativa o sube una imagen.')
+      }
+      // Auto-fallback a cámara nativa
+      setMode('native')
     }
-  }, [captureFrame, stopCamera])
+  }, [facingMode])
 
-  const handleRetake = useCallback(() => {
+  // Detener cámara
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop())
+      streamRef.current = null
+    }
+    setCameraReady(false)
+  }, [])
+
+  // Capturar frame del video
+  const captureFrame = useCallback(() => {
+    if (!videoRef.current || !cameraReady) return
+    const video = videoRef.current
+    const canvas = document.createElement('canvas')
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.92)
+    stopCamera()
+    setPreview(dataUrl)
+    setMode('preview')
+  }, [cameraReady, stopCamera])
+
+  // Switch cámara
+  const switchCamera = useCallback(() => {
+    setFacingMode((prev) => (prev === 'environment' ? 'user' : 'environment'))
+  }, [])
+
+  // Efecto: iniciar/detener cámara según modo
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    if (mode === 'live') {
+      void startCamera()
+    } else {
+      stopCamera()
+    }
+    return () => stopCamera()
+  }, [mode, facingMode, startCamera, stopCamera])
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  // Limpiar al desmontar
+  useEffect(() => {
+    return () => stopCamera()
+  }, [stopCamera])
+
+  const handleFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      if (!file) return
+      setError(null)
+      if (file.size > 10 * 1024 * 1024) {
+        setError('La imagen es demasiado grande (máx 10MB).')
+        return
+      }
+      if (!file.type.startsWith('image/')) {
+        setError('El archivo debe ser una imagen.')
+        return
+      }
+      compressImage(file, 1600, 0.85)
+        .then((dataUrl) => {
+          setPreview(dataUrl)
+          setMode('preview')
+        })
+        .catch(() => setError('No se pudo procesar la imagen.'))
+      e.target.value = ''
+    },
+    []
+  )
+
+  const handleConfirm = () => {
+    if (preview) onCapture(preview)
+  }
+
+  const handleRetake = () => {
     setPreview(null)
     setMode('live')
-    startCamera(facingMode)
-  }, [startCamera, facingMode])
+  }
 
-  const handleConfirm = useCallback(() => {
-    if (preview) onCapture(preview)
-  }, [preview, onCapture])
-
-  const handleCancel = useCallback(() => {
-    stopCamera()
-    onCancel()
-  }, [stopCamera, onCancel])
-
-  // ── Preview mode ──
+  // === Modo preview ===
   if (mode === 'preview' && preview) {
     return (
       <div className="px-4 pt-4">
@@ -97,11 +172,11 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
           <button
             onClick={handleRetake}
             className="p-1.5 rounded-full hover:bg-accent"
-            aria-label="Retake photo"
+            aria-label="Cancelar"
           >
             <X className="h-5 w-5" />
           </button>
-          <h1 className="text-base font-semibold">Preview</h1>
+          <h1 className="text-base font-semibold">Vista previa</h1>
           <div className="w-8" />
         </div>
 
@@ -109,18 +184,18 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
           <div className="relative rounded-2xl overflow-hidden border-2 border-border bg-black">
             <img
               src={preview}
-              alt="Captured receipt preview"
+              alt="Vista previa del ticket"
               className="w-full max-h-[60vh] object-contain"
             />
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={handleRetake} className="flex-1">
               <RefreshCw className="h-4 w-4 mr-2" />
-              Retake
+              Repetir
             </Button>
             <Button onClick={handleConfirm} className="flex-1">
               <ImageIcon className="h-4 w-4 mr-2" />
-              Use image
+              Usar imagen
             </Button>
           </div>
         </div>
@@ -128,100 +203,217 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
     )
   }
 
-  // ── Live camera mode ──
+  // === Modo cámara en vivo ===
   return (
     <div className="px-4 pt-4">
       <div className="flex items-center justify-between mb-4">
         <button
-          onClick={handleCancel}
+          onClick={onCancel}
           className="p-1.5 rounded-full hover:bg-accent"
-          aria-label="Cancel"
+          aria-label="Cancelar"
         >
           <X className="h-5 w-5" />
         </button>
-        <h1 className="text-base font-semibold">Capture ticket</h1>
+        <h1 className="text-base font-semibold">Capturar ticket</h1>
         <div className="w-8" />
       </div>
 
-      {/* Error banner */}
-      {error && !errorDismissed && (
+      {error && (
         <div className="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 flex items-start gap-2">
           <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-          <p className="text-sm text-amber-700 flex-1">{error}</p>
-          <button
-            onClick={() => setErrorDismissed(true)}
-            className="text-amber-500 hover:text-amber-700 p-0.5"
-            aria-label="Dismiss error"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
+          <p className="text-sm text-amber-700">{error}</p>
         </div>
       )}
 
-      <div className="space-y-4">
-        {/* Viewfinder */}
-        <CameraViewfinder cameraReady={cameraReady}>
-          <video
-            ref={videoRef}
-            className={cn(
-              'w-full h-full object-cover transition-opacity',
-              cameraReady ? 'opacity-100' : 'opacity-0'
+      {/* Vista previa de cámara en vivo */}
+      {mode === 'live' && (
+        <div className="space-y-4">
+          <div className="relative aspect-[3/4] w-full rounded-2xl overflow-hidden bg-black">
+            <video
+              ref={videoRef}
+              className={cn(
+                'w-full h-full object-cover transition-opacity',
+                cameraReady ? 'opacity-100' : 'opacity-0'
+              )}
+              playsInline
+              muted
+            />
+            {!cameraReady && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
+                <Loader2 className="h-8 w-8 animate-spin mb-2" />
+                <p className="text-sm">Iniciando cámara…</p>
+              </div>
             )}
-            playsInline
-            muted
-          />
-        </CameraViewfinder>
+            {/* Marco guía */}
+            {cameraReady && (
+              <div className="absolute inset-8 pointer-events-none">
+                <div className="w-full h-full border-2 border-white/40 rounded-lg" />
+                <p className="absolute -bottom-8 left-0 right-0 text-center text-xs text-white/80">
+                  Centra el ticket en el marco
+                </p>
+              </div>
+            )}
+            {/* Switch cámara */}
+            {cameraReady && (
+              <button
+                onClick={switchCamera}
+                className="absolute top-3 right-3 p-2 rounded-full bg-black/50 text-white hover:bg-black/70"
+                aria-label="Cambiar cámara"
+              >
+                <SwitchCamera className="h-5 w-5" />
+              </button>
+            )}
+          </div>
 
-        {/* Facing mode toggle */}
-        {cameraReady && (
-          <button
-            onClick={switchFacingMode}
-            className="absolute top-16 right-8 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 z-10"
-            aria-label="Switch camera"
-          >
-            <SwitchCamera className="h-5 w-5" />
-          </button>
-        )}
-
-        {/* Capture button */}
-        <Button
-          onClick={handleCapture}
-          disabled={!cameraReady}
-          className="w-full"
-          size="lg"
-        >
-          <Camera className="h-5 w-5 mr-2" />
-          {cameraReady ? 'Take photo' : 'Starting camera…'}
-        </Button>
-
-        {/* Fallback options (deferred — visible but disabled) */}
-        <div className="flex items-center gap-2">
-          <div className="flex-1 h-px bg-border" />
-          <span className="text-xs text-muted-foreground px-2">or use</span>
-          <div className="flex-1 h-px bg-border" />
-        </div>
-
-        <div className="grid grid-cols-2 gap-2">
+          {/* Botón capturar */}
           <Button
-            variant="outline"
-            disabled
-            className="opacity-50 cursor-not-allowed"
-            title="Native camera — coming soon"
+            onClick={captureFrame}
+            disabled={!cameraReady}
+            className="w-full"
+            size="lg"
           >
-            <Camera className="h-4 w-4 mr-2" />
-            Native camera
+            <Camera className="h-5 w-5 mr-2" />
+            {cameraReady ? 'Hacer foto' : 'Iniciando cámara…'}
           </Button>
-          <Button
-            variant="outline"
-            disabled
-            className="opacity-50 cursor-not-allowed"
-            title="Upload image — coming soon"
-          >
-            <Upload className="h-4 w-4 mr-2" />
-            Upload image
-          </Button>
+
+          {/* Opciones alternativas */}
+          <div className="flex items-center gap-2">
+            <div className="flex-1 h-px bg-border" />
+            <span className="text-xs text-muted-foreground px-2">o usa</span>
+            <div className="flex-1 h-px bg-border" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                stopCamera()
+                setMode('native')
+                setTimeout(() => cameraInputRef.current?.click(), 100)
+              }}
+            >
+              <Camera className="h-4 w-4 mr-2" />
+              Cámara nativa
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                stopCamera()
+                setMode('upload')
+                setTimeout(() => fileInputRef.current?.click(), 100)
+              }}
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              Subir imagen
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Vista para modo native/upload con placeholder */}
+      {mode !== 'live' && !preview && (
+        <div className="space-y-4">
+          <div
+            className="aspect-[3/4] w-full rounded-2xl border-2 border-dashed border-border bg-accent/30 flex flex-col items-center justify-center gap-4 cursor-pointer hover:bg-accent/50 transition-colors"
+            onClick={() => cameraInputRef.current?.click()}
+          >
+            <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
+              <Camera className="h-8 w-8 text-primary" />
+            </div>
+            <div className="text-center px-6">
+              <p className="font-semibold text-foreground mb-1">
+                Toca para hacer la foto
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Centra el ticket en la foto. Asegúrate de que se lean bien los
+                precios.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="flex-1 h-px bg-border" />
+            <span className="text-xs text-muted-foreground px-2">o</span>
+            <div className="flex-1 h-px bg-border" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setMode('live')
+              }}
+            >
+              <Camera className="h-4 w-4 mr-2" />
+              Cámara en vivo
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              Subir imagen
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Inputs ocultos */}
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={handleFileChange}
+      />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleFileChange}
+      />
     </div>
   )
+}
+
+/** Comprime una imagen y la devuelve como data URL JPEG. */
+async function compressImage(
+  file: File,
+  maxDimension: number,
+  quality: number
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const img = new Image()
+      img.onload = () => {
+        let { width, height } = img
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = (height * maxDimension) / width
+            width = maxDimension
+          } else {
+            width = (width * maxDimension) / height
+            height = maxDimension
+          }
+        }
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')
+        if (!ctx) {
+          reject(new Error('No canvas context'))
+          return
+        }
+        ctx.drawImage(img, 0, 0, width, height)
+        resolve(canvas.toDataURL('image/jpeg', quality))
+      }
+      img.onerror = () => reject(new Error('No se pudo cargar la imagen'))
+      img.src = reader.result as string
+    }
+    reader.onerror = () => reject(new Error('No se pudo leer el archivo'))
+    reader.readAsDataURL(file)
+  })
 }

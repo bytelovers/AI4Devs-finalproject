@@ -1,7 +1,9 @@
+'use client'
+
 import { useAppStore } from '@/lib/store'
 import { formatEUR, formatDate, computeShares, calcTicketTotal } from '@/lib/calc'
 import { EmptyState, PageHeader } from '@/components/ui/EmptyState'
-import { AvatarStack } from '@/components/ui/AvatarStack'
+import { Avatar, AvatarStack } from '@/components/ui/Avatar'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Plus, Receipt, ScanLine, TrendingUp, ChevronRight, CheckCircle2 } from 'lucide-react'
@@ -219,9 +221,9 @@ export function HomeView() {
       {people.length === 0 && tickets.length === 0 && (
         <Card className="mt-6 p-4 border-dashed border-2 border-border bg-accent/30">
           <p className="text-sm text-muted-foreground text-center">
-            Consejo: anade tus contactos desde la pestaña{' '}
+            Consejo: añade tus contactos desde la pestaña{' '}
             <strong className="text-foreground">Contactos</strong> para dividir
-            tickets mas rapido.
+            tickets mas rápido.
           </p>
         </Card>
       )}

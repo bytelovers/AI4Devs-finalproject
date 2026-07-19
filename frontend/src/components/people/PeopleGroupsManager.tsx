@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useAppStore } from '@/lib/store'
 import type { ID } from '@/lib/types'
-import { Avatar } from '@/components/ui/AvatarStack'
+import { Avatar } from '@/components/ui/Avatar'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'

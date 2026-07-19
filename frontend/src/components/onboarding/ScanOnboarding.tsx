@@ -1,3 +1,5 @@
+'use client'
+
 import { useState, useEffect, useRef } from 'react'
 import { useAppStore } from '@/lib/store'
 import {
@@ -25,11 +27,16 @@ import {
   FileCheck,
   Gauge,
 } from 'lucide-react'
-import { getEngines } from '@/lib/scan/capabilities'
+import {
+  getEngines,
+} from '@/lib/scan/capabilities'
 import type { EngineInfo } from '@/lib/scan/types'
 import type { DownloadSummary } from '@/lib/scan/download-tracker'
 import { formatBytes, formatSpeed, formatETA } from '@/lib/scan/download-tracker'
 
+// isFlorenceEnabled nos dice si el modelo está realmente descargado y listo
+// (se establece a true solo después de un prewarm exitoso).
+// checkModelCached daba falsos positivos, por eso no lo usamos.
 async function isFlorenceReady(): Promise<boolean> {
   const { isFlorenceEnabled } = await import('@/lib/scan/orchestrator')
   return isFlorenceEnabled()
@@ -45,6 +52,10 @@ interface ScanOnboardingProps {
 
 type DownloadStage = 'idle' | 'downloading' | 'verifying' | 'done' | 'error'
 
+/**
+ * Pantalla de onboarding para explicar y gestionar la descarga del modelo
+ * Florence-2 (~400MB) la primera vez que el usuario quiere escanear on-device.
+ */
 export function ScanOnboarding({ open, onClose, onUseServer, onUseTesseract, onUseTesseractNer }: ScanOnboardingProps) {
   const [engines, setEngines] = useState<EngineInfo[]>([])
   const [isCached, setIsCached] = useState(false)
@@ -52,17 +63,18 @@ export function ScanOnboarding({ open, onClose, onUseServer, onUseTesseract, onU
   const [download, setDownload] = useState<DownloadSummary | null>(null)
   const [errorMessage, setErrorMessage] = useState<string>('')
   const startedRef = useRef(false)
+  // Leer preferredEngine del store para highlight visual
   const preferredEngine = useAppStore((s) => s.settings.preferredEngine)
 
   useEffect(() => {
     if (open) {
       loadEngines()
+      // Reset al abrir
       setStage('idle')
       setDownload(null)
       setErrorMessage('')
       startedRef.current = false
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
   const loadEngines = async () => {
@@ -81,7 +93,11 @@ export function ScanOnboarding({ open, onClose, onUseServer, onUseTesseract, onU
     try {
       const { prewarmFlorenceModel } = await import('@/lib/scan/florence-engine')
 
-      await prewarmFlorenceModel((info: any) => {
+      // Nota: NO usar info.percent === 100 como señal de fin, porque
+      // el porcentaje global puede llegar a 100% cuando un solo archivo
+      // termina (si los demás aún no se han iniciado). Solo confiar en
+      // la resolución de la promesa como señal de fin real.
+      await prewarmFlorenceModel((info) => {
         if (info.phase === 'loading-model') {
           if (info.download) {
             setDownload(info.download)
@@ -89,9 +105,13 @@ export function ScanOnboarding({ open, onClose, onUseServer, onUseTesseract, onU
         }
       })
 
+      // La promesa se resolvió: el modelo está descargado y cargado.
       setStage('verifying')
+      // Activar Florence-2 para futuros escaneos sin necesidad de
+      // volver a verificar caché.
       const { enableFlorenceEngine } = await import('@/lib/scan/orchestrator')
       enableFlorenceEngine()
+      // Pequeña espera para que el "verificando" se vea
       await new Promise((r) => setTimeout(r, 800))
       setStage('done')
       setIsCached(true)
@@ -124,6 +144,7 @@ export function ScanOnboarding({ open, onClose, onUseServer, onUseTesseract, onU
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Estado: cacheado */}
           {isCached && stage !== 'downloading' && stage !== 'verifying' && (
             <Card className="p-4 border-primary/30 bg-accent/30">
               <div className="flex items-start gap-3">
@@ -141,6 +162,7 @@ export function ScanOnboarding({ open, onClose, onUseServer, onUseTesseract, onU
             </Card>
           )}
 
+          {/* Estado: descargando (UX refinada) */}
           {(stage === 'downloading' || stage === 'verifying') && download && (
             <DownloadProgressCard
               download={download}
@@ -148,6 +170,7 @@ export function ScanOnboarding({ open, onClose, onUseServer, onUseTesseract, onU
             />
           )}
 
+          {/* Estado: descargando pero sin info de progreso aún */}
           {(stage === 'downloading' || stage === 'verifying') && !download && (
             <Card className="p-4">
               <div className="flex items-center gap-2">
@@ -162,6 +185,7 @@ export function ScanOnboarding({ open, onClose, onUseServer, onUseTesseract, onU
             </Card>
           )}
 
+          {/* Estado: error */}
           {stage === 'error' && (
             <Card className="p-4 border-destructive/30 bg-destructive/5">
               <div className="flex items-start gap-3">
@@ -195,6 +219,7 @@ export function ScanOnboarding({ open, onClose, onUseServer, onUseTesseract, onU
             </Card>
           )}
 
+          {/* Estado: completado */}
           {stage === 'done' && (
             <Card className="p-4 border-primary/30 bg-accent/30">
               <div className="flex items-start gap-3">
@@ -211,8 +236,10 @@ export function ScanOnboarding({ open, onClose, onUseServer, onUseTesseract, onU
             </Card>
           )}
 
+          {/* Mostrar info de motores solo si no está descargando */}
           {stage !== 'downloading' && stage !== 'verifying' && (
             <>
+              {/* Tarjeta Florence-2 */}
               {florenceEngine && (
                 <Card
                   className={
@@ -287,6 +314,7 @@ export function ScanOnboarding({ open, onClose, onUseServer, onUseTesseract, onU
                 </Card>
               )}
 
+              {/* Tesseract + NER */}
               {tesseractNerEngine && tesseractNerEngine.status === 'available' && (
                 <Card className={
                   preferredEngine === 'tesseract-ner'
@@ -302,7 +330,7 @@ export function ScanOnboarding({ open, onClose, onUseServer, onUseTesseract, onU
                         OCR + IA (NER)
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Tesseract + BERT español · ~110MB · Precisión media-alta
+                        Tesseract + BERT español · Precisión media-alta
                       </p>
                     </div>
                     <Button
@@ -327,6 +355,7 @@ export function ScanOnboarding({ open, onClose, onUseServer, onUseTesseract, onU
                 </Card>
               )}
 
+              {/* Tesseract fallback */}
               {tesseractEngine && tesseractEngine.status === 'available' && (
                 <Card className={
                   preferredEngine === 'tesseract'
@@ -363,6 +392,7 @@ export function ScanOnboarding({ open, onClose, onUseServer, onUseTesseract, onU
                 </Card>
               )}
 
+              {/* Servidor */}
               {serverEngine && serverEngine.status === 'available' && (
                 <Card className={
                   preferredEngine === 'server'
@@ -412,6 +442,9 @@ export function ScanOnboarding({ open, onClose, onUseServer, onUseTesseract, onU
   )
 }
 
+/**
+ * Tarjeta de progreso de descarga con información detallada y veraz.
+ */
 function DownloadProgressCard({
   download,
   stage,
@@ -424,6 +457,7 @@ function DownloadProgressCard({
 
   return (
     <Card className="p-4 space-y-3">
+      {/* Cabecera */}
       <div className="flex items-center gap-2">
         {isVerifying ? (
           <CheckCircle2 className="h-5 w-5 text-primary" />
@@ -437,6 +471,7 @@ function DownloadProgressCard({
         </p>
       </div>
 
+      {/* Barra de progreso */}
       <div>
         <Progress value={isVerifying ? 100 : percent} className="h-2" />
         <div className="flex items-center justify-between mt-1.5 text-xs">
@@ -449,6 +484,7 @@ function DownloadProgressCard({
         </div>
       </div>
 
+      {/* Stats grid */}
       <div className="grid grid-cols-3 gap-2 text-xs">
         <div className="flex flex-col gap-0.5">
           <span className="text-muted-foreground flex items-center gap-1">
@@ -479,6 +515,7 @@ function DownloadProgressCard({
         </div>
       </div>
 
+      {/* Lista de archivos (los últimos 4) */}
       {download.files.length > 0 && !isVerifying && (
         <div className="space-y-1 pt-2 border-t border-border">
           {download.files.slice(-4).map((f) => (
@@ -509,6 +546,7 @@ function DownloadProgressCard({
         </div>
       )}
 
+      {/* Aviso de paciencia */}
       {!isVerifying && percent < 100 && (
         <p className="text-xs text-muted-foreground text-center pt-1">
           Esta descarga solo ocurre una vez. Después funcionará sin conexión.
@@ -518,7 +556,7 @@ function DownloadProgressCard({
   )
 }
 
-function truncateFilename(name: string | undefined): string {
+function truncateFilename(name: string): string {
   if (!name) return 'archivo'
   const parts = name.split('/')
   const short = parts[parts.length - 1]

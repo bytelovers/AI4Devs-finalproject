@@ -1,3 +1,6 @@
+/** @deprecated AppShell now inlines the bottom navigation. This component is kept for backward compat but no longer rendered. */
+/** @deprecated AppShell now inlines the bottom navigation. This component is kept for backward compat but no longer rendered. */
+
 import { cn } from '@/lib/utils'
 import { useAppStore } from '@/lib/store'
 import type { ViewName } from '@/lib/types'

@@ -1,3 +1,5 @@
+'use client'
+
 import { useAppStore } from '@/lib/store'
 import { TicketSummary } from '@/components/ticket/TicketSummary'
 import { TicketItemsEditor } from '@/components/ticket/TicketItemsEditor'
@@ -6,7 +8,7 @@ import { PeopleGroupsManager } from '@/components/people/PeopleGroupsManager'
 import { PageHeader, EmptyState } from '@/components/ui/EmptyState'
 import { Button } from '@/components/ui/button'
 import { useState } from 'react'
-import { Receipt, Pencil, ListChecks, Users } from 'lucide-react'
+import { Receipt, Edit3, ListChecks, Users, Pencil } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type DetailTab = 'summary' | 'items' | 'participants' | 'assign'

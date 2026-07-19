@@ -1,3 +1,5 @@
+'use client'
+
 import { useAppStore } from '@/lib/store'
 import { PageHeader } from '@/components/ui/EmptyState'
 import { Card } from '@/components/ui/card'
@@ -25,7 +27,6 @@ import {
 } from '@/components/ui/alert-dialog'
 import {
   User,
-  Mail,
   Settings as SettingsIcon,
   Percent,
   Database,
@@ -36,302 +37,305 @@ import {
   Flag,
   ChevronRight,
   Zap,
+  Upload,
+  Download,
 } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { formatEUR, calcTicketTotal } from '@/lib/calc'
-import { ScanEngineSelector } from '@/components/scan/ScanEngineSelector'
 
 export function SettingsView() {
-  const profile = useAppStore((s) => s.profile)
   const settings = useAppStore((s) => s.settings)
-  const updateProfile = useAppStore((s) => s.updateProfile)
   const updateSettings = useAppStore((s) => s.updateSettings)
-  const resetAll = useAppStore((s) => s.resetAll)
+  const featureFlags = useAppStore((s) => s.featureFlags)
+  const updateFeatureFlags = useAppStore((s) => s.updateFeatureFlags)
   const tickets = useAppStore((s) => s.tickets)
   const people = useAppStore((s) => s.people)
   const groups = useAppStore((s) => s.groups)
-  const setView = useAppStore((s) => s.setView)
-  const [nameInput, setNameInput] = useState(profile.name)
-  const [emailInput, setEmailInput] = useState(profile.email ?? '')
+  const exportData = useAppStore((s) => s.exportData)
+  const importData = useAppStore((s) => s.importData)
+  const clearAllData = useAppStore((s) => s.clearAllData)
 
-  const handleSaveProfile = () => {
-    updateProfile({
-      name: nameInput.trim(),
-      email: emailInput.trim() || undefined,
-    })
-    toast.success('Perfil guardado')
-  }
+  const totalExpenses = tickets.reduce((sum, t) => sum + calcTicketTotal(t), 0)
 
-  const handleReset = () => {
-    resetAll()
-    toast.success('Se han borrado todos los datos')
-    setView('home')
-  }
-
-  const totalTickets = tickets.length
-  const totalAmount = tickets.reduce((s, t) => s + calcTicketTotal(t), 0)
+  const [showImport, setShowImport] = useState(false)
+  const [importText, setImportText] = useState('')
 
   return (
-    <div className="px-4 pt-6 pb-4">
-      <PageHeader title="Ajustes" subtitle="Tu perfil y preferencias" />
+    <div className="px-4 pt-6">
+      <PageHeader title="Ajustes" subtitle="Configura la app a tu gusto" />
 
-      {/* Stats */}
-      <Card className="p-4 mb-5 bg-accent/30">
-        <div className="grid grid-cols-3 gap-3 text-center">
+      {/* Motor de escaneo */}
+      <Card className="p-4 space-y-4 mb-6">
+        <div className="flex items-center gap-3">
+          <Sparkles className="h-5 w-5 text-primary" />
           <div>
-            <p className="text-xl font-bold text-primary">{totalTickets}</p>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wide mt-0.5">
-              Tickets
-            </p>
-          </div>
-          <div>
-            <p className="text-xl font-bold text-primary">{people.length}</p>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wide mt-0.5">
-              Contactos
-            </p>
-          </div>
-          <div>
-            <p className="text-xl font-bold text-primary">{groups.length}</p>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wide mt-0.5">
-              Grupos
+            <h3 className="font-semibold text-foreground">Motor de escaneo</h3>
+            <p className="text-xs text-muted-foreground">
+              Elige cómo se procesan los tickets
             </p>
           </div>
         </div>
-        <div className="mt-3 pt-3 border-t border-border text-center">
-          <p className="text-xs text-muted-foreground">Total dividido</p>
-          <p className="text-lg font-bold text-foreground">
-            {formatEUR(totalAmount)}
+        <Select
+          value={settings.preferredEngine}
+          onValueChange={(v) => updateSettings({ preferredEngine: v as any })}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="server">
+              <div className="flex flex-col gap-0.5">
+                <span className="font-medium">IA en la nube</span>
+                <span className="text-xs text-muted-foreground">Más preciso, requiere conexión</span>
+              </div>
+            </SelectItem>
+            <SelectItem value="tesseract">
+              <div className="flex flex-col gap-0.5">
+                <span className="font-medium">Escaneo básico</span>
+                <span className="text-xs text-muted-foreground">OCR local (Tesseract.js)</span>
+              </div>
+            </SelectItem>
+            <SelectItem value="tesseract-ner">
+              <div className="flex flex-col gap-0.5">
+                <span className="font-medium">Escaneo con IA</span>
+                <span className="text-xs text-muted-foreground">OCR local + NER para estructurar</span>
+              </div>
+            </SelectItem>
+            <SelectItem value="florence2">
+              <div className="flex flex-col gap-0.5">
+                <span className="font-medium">Escaneo avanzado</span>
+                <span className="text-xs text-muted-foreground">Florence-2 local (experimental)</span>
+              </div>
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      </Card>
+
+      {/* Flags experimentales */}
+      <Card className="p-4 space-y-4 mb-6">
+        <div className="flex items-center gap-3">
+          <Flag className="h-5 w-5 text-amber-500" />
+          <div>
+            <h3 className="font-semibold text-foreground">Funciones experimentales</h3>
+            <p className="text-xs text-muted-foreground">
+              Activa features en desarrollo
+            </p>
+          </div>
+        </div>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Zap className="h-4 w-4 text-amber-500" />
+              <span className="text-sm font-medium">Mini-agente</span>
+            </div>
+            <Switch
+              checked={featureFlags.useMiniAgent}
+              onCheckedChange={(v) => updateFeatureFlags({ useMiniAgent: v })}
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-emerald-500" />
+              <span className="text-sm font-medium">Revisión OCR</span>
+            </div>
+            <Switch
+              checked={featureFlags.showOcrReview}
+              onCheckedChange={(v) => updateFeatureFlags({ showOcrReview: v })}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            La revisión OCR permite corregir el texto antes de pasarlo al modelo NER
           </p>
         </div>
       </Card>
 
-      {/* Perfil */}
-      <SectionTitle icon={User} title="Perfil" />
-      <Card className="p-4 mb-5 space-y-3">
-        <div>
-          <Label htmlFor="name">Nombre</Label>
-          <div className="flex gap-2 mt-1">
+      {/* IVA y propina por defecto */}
+      <Card className="p-4 space-y-4 mb-6">
+        <div className="flex items-center gap-3">
+          <Percent className="h-5 w-5 text-primary" />
+          <div>
+            <h3 className="font-semibold text-foreground">Valores por defecto</h3>
+            <p className="text-xs text-muted-foreground">
+              Se aplican a tickets nuevos sin datos
+            </p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="defaultTax">IVA por defecto (%)</Label>
             <Input
-              id="name"
-              value={nameInput}
-              onChange={(e) => setNameInput(e.target.value)}
-              placeholder="Tu nombre"
+              id="defaultTax"
+              type="number"
+              step="0.5"
+              min="0"
+              max="100"
+              value={settings.defaultTaxRate * 100}
+              onChange={(e) =>
+                updateSettings({ defaultTaxRate: parseFloat(e.target.value) / 100 })
+              }
+              className="mt-1"
+            />
+          </div>
+          <div>
+            <Label htmlFor="defaultTip">Propina por defecto (%)</Label>
+            <Input
+              id="defaultTip"
+              type="number"
+              step="0.5"
+              min="0"
+              max="100"
+              value={settings.defaultTipRate * 100}
+              onChange={(e) =>
+                updateSettings({ defaultTipRate: parseFloat(e.target.value) / 100 })
+              }
+              className="mt-1"
             />
           </div>
         </div>
-        <div>
-          <Label htmlFor="email">Email (opcional)</Label>
-          <div className="relative mt-1">
-            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              id="email"
-              type="email"
-              value={emailInput}
-              onChange={(e) => setEmailInput(e.target.value)}
-              placeholder="tucorreo@ejemplo.com"
-              className="pl-9"
-            />
-          </div>
-        </div>
-        <Button onClick={handleSaveProfile} className="w-full">
-          Guardar perfil
-        </Button>
       </Card>
 
-      {/* Cuenta (sincronización) */}
-      <SectionTitle icon={ShieldCheck} title="Cuenta y sincronización" />
-      <Card className="p-4 mb-5">
-        {profile.hasAccount ? (
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-              <ShieldCheck className="h-5 w-5 text-primary" />
-            </div>
-            <div className="flex-1">
-              <p className="font-medium text-foreground">
-                Cuenta activa
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {profile.email}
-              </p>
-            </div>
-          </div>
-        ) : (
+      {/* Datos */}
+      <Card className="p-4 space-y-4 mb-6">
+        <div className="flex items-center gap-3">
+          <Database className="h-5 w-5 text-primary" />
           <div>
-            <div className="flex items-start gap-3 mb-3">
-              <div className="h-10 w-10 rounded-full bg-accent flex items-center justify-center shrink-0">
-                <Sparkles className="h-5 w-5 text-accent-foreground" />
-              </div>
-              <div>
-                <p className="font-medium text-foreground mb-0.5">
-                  Modo local
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Tus datos se guardan solo en este dispositivo. Crea una cuenta
-                  para sincronizar entre dispositivos y guardar historial en la
-                  nube.
-                </p>
-              </div>
+            <h3 className="font-semibold text-foreground">Datos y respaldo</h3>
+            <p className="text-xs text-muted-foreground">
+              {tickets.length} tickets · {people.length} contactos · {groups.length} grupos
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-col gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              const blob = new Blob([JSON.stringify(exportData(), null, 2)], {
+                type: 'application/json',
+              })
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = url
+              a.download = `cuadra-backup-${new Date().toISOString().slice(0, 10)}.json`
+              a.click()
+              URL.revokeObjectURL(url)
+              toast.success('Backup descargado')
+            }}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Exportar backup (JSON)
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setShowImport(true)}
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            Importar backup
+          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" className="w-full">
+                <Trash2 className="h-4 w-4 mr-2" />
+                Borrar todos los datos
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Eliminar todo?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Se borrarán todos los tickets, contactos, grupos y ajustes. No se puede deshacer.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => {
+                    clearAllData()
+                    toast.success('Todos los datos eliminados')
+                  }}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Eliminar todo
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+
+        {showImport && (
+          <div className="mt-4 space-y-2">
+            <Label htmlFor="importData">Pega el JSON del backup</Label>
+            <textarea
+              id="importData"
+              value={importText}
+              onChange={(e) => setImportText(e.target.value)}
+              rows={6}
+              className="w-full p-3 rounded-md border border-border bg-background text-foreground text-sm font-mono resize-none focus:outline-none focus:ring-2 focus:ring-primary/40"
+              placeholder='{"tickets":[],"people":[],"groups":[],"settings":{...}}'
+            />
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowImport(false)
+                  setImportText('')
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={() => {
+                  try {
+                    importData(JSON.parse(importText))
+                    toast.success('Datos importados correctamente')
+                    setShowImport(false)
+                    setImportText('')
+                  } catch (e) {
+                    toast.error('JSON inválido: ' + (e as Error).message)
+                  }
+                }}
+              >
+                Importar
+              </Button>
             </div>
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() =>
-                toast.info('La sincronización en la nube estará disponible pronto')
-              }
-            >
-              <ShieldCheck className="h-4 w-4 mr-2" />
-              Crear cuenta (próximamente)
-            </Button>
           </div>
         )}
       </Card>
 
-      {/* Preferencias */}
-      <SectionTitle icon={SettingsIcon} title="Preferencias" />
-      <Card className="p-4 mb-5 space-y-4">
-        <div>
-          <Label>IVA por defecto</Label>
-          <Select
-            value={String(settings.defaultTaxRate)}
-            onValueChange={(v) =>
-              updateSettings({ defaultTaxRate: Number(v) })
-            }
-          >
-            <SelectTrigger className="mt-1">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="0">0% (sin IVA)</SelectItem>
-              <SelectItem value="0.04">4% (superreducido)</SelectItem>
-              <SelectItem value="0.1">10% (reducido)</SelectItem>
-              <SelectItem value="0.21">21% (general)</SelectItem>
-            </SelectContent>
-          </Select>
-          <p className="text-xs text-muted-foreground mt-1">
-            Se aplicará a los tickets nuevos por defecto.
-          </p>
-        </div>
-        <div>
-          <Label>Propina por defecto (%)</Label>
-          <Input
-            type="number"
-            inputMode="numeric"
-            min="0"
-            max="100"
-            value={settings.defaultTipPercentage}
-            onChange={(e) =>
-              updateSettings({
-                defaultTipPercentage: parseInt(e.target.value) || 0,
-              })
-            }
-            className="mt-1"
-          />
-        </div>
-      </Card>
-
-      {/* Motor de escaneo */}
-      <SectionTitle icon={Zap} title="Motor de escaneo" />
-      <p className="text-xs text-muted-foreground mb-3 px-1">
-        Selecciona cómo quieres escanear los tickets. Ordenados de menor a mayor precisión.
-      </p>
-      <div className="mb-5">
-        <ScanEngineSelector detailed />
-      </div>
-
-      {/* Datos */}
-      <SectionTitle icon={Database} title="Datos" />
-      <Card className="p-4 mb-5 space-y-3">
-        <div className="flex items-center gap-3 text-sm">
-          <Info className="h-4 w-4 text-muted-foreground shrink-0" />
-          <p className="text-muted-foreground">
-            Todos los datos se guardan localmente en tu navegador. Si borras la
-            caché del navegador, perderás los tickets.
-          </p>
-        </div>
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button
-              variant="outline"
-              className="w-full text-destructive hover:text-destructive"
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Borrar todos los datos
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>
-                ¿Borrar todos los datos?
-              </AlertDialogTitle>
-              <AlertDialogDescription>
-                Se eliminarán todos tus tickets, contactos y grupos. Esta acción
-                no se puede deshacer.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleReset}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              >
-                Sí, borrar todo
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </Card>
-
-      {/* Desarrollador */}
-      <SectionTitle icon={Flag} title="Desarrollador" />
-      <Card className="p-4 mb-5">
-        <button
-          onClick={() => setView('feature-flags')}
-          className="w-full flex items-center gap-3 text-left hover:bg-accent/30 -m-1 p-1 rounded-lg transition-colors"
-        >
-          <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-            <Flag className="h-4 w-4 text-primary" />
+      {/* Estadísticas rápidas */}
+      <Card className="p-4 space-y-3 mb-6">
+        <h3 className="font-semibold text-foreground">Resumen</h3>
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <p className="text-muted-foreground">Total gastado</p>
+            <p className="font-bold text-foreground">{formatEUR(totalExpenses)}</p>
           </div>
-          <div className="flex-1">
-            <p className="text-sm font-medium text-foreground">
-              Feature Flags
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Configuración experimental y de desarrollador
-            </p>
+          <div>
+            <p className="text-muted-foreground">Tickets</p>
+            <p className="font-bold text-foreground">{tickets.length}</p>
           </div>
-          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-        </button>
-      </Card>
-
-      {/* Acerca de */}
-      <Card className="p-4 bg-muted/30">
-        <div className="flex items-center gap-2 mb-1">
-          <Percent className="h-4 w-4 text-primary" />
-          <span className="text-sm font-semibold">Cuadra v1.0</span>
+          <div>
+            <p className="text-muted-foreground">Contactos</p>
+            <p className="font-bold text-foreground">{people.length}</p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">Grupos</p>
+            <p className="font-bold text-foreground">{groups.length}</p>
+          </div>
         </div>
-        <p className="text-xs text-muted-foreground">
-          App para dividir tickets de restaurante entre contactos. Escanea con
-          IA, asigna items a personas y verifica que todo cuadre al céntimo.
-        </p>
       </Card>
-    </div>
-  )
-}
 
-function SectionTitle({
-  icon: Icon,
-  title,
-}: {
-  icon: typeof User
-  title: string
-}) {
-  return (
-    <div className="flex items-center gap-1.5 mb-2 px-1">
-      <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-      <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-        {title}
-      </h2>
+      {/* Info app */}
+      <Card className="p-4">
+        <div className="flex items-center gap-3">
+          <Info className="h-5 w-5 text-muted-foreground" />
+          <div className="text-xs text-muted-foreground space-y-1">
+            <p>Cuadra — Divide la cuenta sin dramas</p>
+            <p>Datos guardados localmente en tu navegador (IndexedDB)</p>
+            <p>No hay servidor, no hay tracking, no hay cuentas</p>
+          </div>
+        </div>
+      </Card>
     </div>
   )
 }

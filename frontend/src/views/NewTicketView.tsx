@@ -1,6 +1,8 @@
+'use client'
+
 import { useState, useCallback, useEffect } from 'react'
 import { useAppStore } from '@/lib/store'
-import type { ScanResult, ScanProgress } from '@/lib/scan/types'
+import type { ParsedTicket } from '@/lib/types'
 import { PageHeader } from '@/components/ui/EmptyState'
 import { CameraCapture } from '@/components/camera/CameraCapture'
 import {
@@ -10,6 +12,8 @@ import {
   ScanSuccessBanner,
 } from '@/components/ticket/TicketItemsEditor'
 import { ParticipantPicker } from '@/components/ticket/ParticipantPicker'
+import { AssignmentEditor } from '@/components/ticket/AssignmentEditor'
+import { TicketSummary } from '@/components/ticket/TicketSummary'
 import { ScanOnboarding } from '@/components/onboarding/ScanOnboarding'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -26,12 +30,14 @@ import {
   Receipt,
   Sparkles,
   Cpu,
+  Server,
   Image as ImageIcon,
   Wand2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { scanTicket } from '@/lib/scan/orchestrator'
+import type { ScanProgress, ScanResult } from '@/lib/scan/types'
 
 type Step =
   | 'capture'
@@ -39,11 +45,15 @@ type Step =
   | 'ocr-review'
   | 'review'
   | 'participants'
+  | 'assign'
+  | 'summary'
 
 const STEP_ORDER: Step[] = [
   'capture',
   'review',
   'participants',
+  'assign',
+  'summary',
 ]
 
 const STEP_META: Record<
@@ -64,6 +74,16 @@ const STEP_META: Record<
     title: 'Participantes',
     subtitle: '¿Quién participa en esta cuenta?',
     icon: Users,
+  },
+  assign: {
+    title: 'Asignar items',
+    subtitle: 'Reparte cada item entre las personas',
+    icon: ListChecks,
+  },
+  summary: {
+    title: 'Resumen y cuadre',
+    subtitle: 'Verifica que todo cuadra',
+    icon: Receipt,
   },
 }
 
@@ -87,15 +107,18 @@ export function NewTicketView() {
   const [titleInput, setTitleInput] = useState('')
   const [scanProgress, setScanProgress] = useState<ScanProgress | null>(null)
   const [showOnboarding, setShowOnboarding] = useState(false)
-  const [forceServerNext] = useState(settings.preferredEngine === 'server')
-  const [forceTesseractNext] = useState(settings.preferredEngine === 'tesseract')
-  const [forceTesseractNerNext] = useState(settings.preferredEngine === 'tesseract-ner')
+  // Inicializar flags desde preferredEngine guardado
+  const [forceServerNext, setForceServerNext] = useState(settings.preferredEngine === 'server')
+  const [forceTesseractNext, setForceTesseractNext] = useState(settings.preferredEngine === 'tesseract')
+  const [forceTesseractNerNext, setForceTesseractNerNext] = useState(settings.preferredEngine === 'tesseract-ner')
+  // Estado para revisión OCR antes del NER
   const [ocrRawText, setOcrRawText] = useState<string>('')
   const [ocrPreprocessedImage, setOcrPreprocessedImage] = useState<string | undefined>()
 
   const ticket = tickets.find((t) => t.id === ticketId) ?? null
   const stepIndex = STEP_ORDER.indexOf(step)
 
+  // Si viene del botón "Manual", crear ticket vacío y saltar a review
   useEffect(() => {
     if (startManual) {
       useAppStore.setState({ _startManual: false })
@@ -110,6 +133,8 @@ export function NewTicketView() {
     }
   }, [startManual, addTicket])
 
+  // ----- Helpers -----
+  // Función helper para aplicar el resultado del escaneo al ticket
   const applyScanResult = useCallback(
     (result: ScanResult, ticketId: string, imageDataUrl: string) => {
       updateTicket(ticketId, {
@@ -158,6 +183,7 @@ export function NewTicketView() {
     [updateTicket, recalcTicket]
   )
 
+  // Función helper para procesar texto con NER
   const processWithNer = useCallback(
     async (
       text: string,
@@ -212,13 +238,14 @@ export function NewTicketView() {
         ...parsed,
         merchant,
         engine: 'tesseract-ner',
-        preprocessedImageDataUrl: preprocessed,
+        preprocessedImageDataUrl: preprocessedImage,
         rawText: text,
       }
     },
     [featureFlags.useMiniAgent]
   )
 
+  // ----- Handlers de captura -----
   const handleCapture = useCallback(
     async (imageDataUrl: string) => {
       setCapturedImage(imageDataUrl)
@@ -229,6 +256,7 @@ export function NewTicketView() {
         message: 'Preparando imagen…',
       })
 
+      // Crear ticket inicial vacío con la imagen
       const newTicket = addTicket({
         title: 'Nuevo ticket',
         image: imageDataUrl,
@@ -238,13 +266,19 @@ export function NewTicketView() {
       setTicketId(newTicket.id)
 
       try {
+        // Si el motor es Tesseract+NER, dividir el pipeline:
+        // 1. Ejecutar solo Tesseract
+        // 2. Mostrar revisión OCR
+        // 3. Después el usuario continúa y se ejecuta NER
         if (forceTesseractNerNext) {
           const { scanWithTesseract } = await import('@/lib/scan/tesseract-engine')
           const tesseractResult = await scanWithTesseract(imageDataUrl, (p) =>
             setScanProgress(p)
           )
 
+          // Si el feature flag showOcrReview está activo, mostrar pantalla de revisión
           if (featureFlags.showOcrReview) {
+            // Guardar texto OCR para revisión
             setOcrRawText(tesseractResult.rawText ?? '')
             setOcrPreprocessedImage(tesseractResult.preprocessedImageDataUrl)
             setScanProgress(null)
@@ -252,10 +286,11 @@ export function NewTicketView() {
             return
           }
 
+          // Si está desactivado, procesar directamente con NER
           const result = await processWithNer(
             tesseractResult.rawText ?? '',
             tesseractResult.preprocessedImageDataUrl,
-            imageDataUrl,
+            image,
             (p) => setScanProgress(p)
           )
           setScanEngineUsed('tesseract-ner')
@@ -263,12 +298,13 @@ export function NewTicketView() {
           return
         }
 
+        // Para otros motores, ejecutar normalmente
         const result: ScanResult = await scanTicket(
-          { imageDataUrl },
+          { imageDataUrl, forceServer: forceServerNext },
           {
             forceServer: forceServerNext,
             forceTesseract: forceTesseractNext,
-            forceTesseractNer: false,
+            forceTesseractNer: false, // Ya se manejó arriba
             onProgress: (p) => setScanProgress(p),
           }
         )
@@ -286,6 +322,7 @@ export function NewTicketView() {
     [addTicket, updateTicket, recalcTicket, forceServerNext, forceTesseractNext, forceTesseractNerNext, featureFlags.showOcrReview, processWithNer, applyScanResult]
   )
 
+  // Handler: continuar desde revisión OCR → ejecutar NER
   const handleOcrReviewContinue = useCallback(async () => {
     if (!ticketId || !ocrRawText) {
       setStep('review')
@@ -317,6 +354,7 @@ export function NewTicketView() {
   }, [ticketId, ocrRawText, ocrPreprocessedImage, capturedImage, applyScanResult, processWithNer])
 
   const handleSkipCapture = () => {
+    // Crear ticket vacío sin imagen
     const newTicket = addTicket({
       title: 'Ticket manual',
       items: [],
@@ -335,20 +373,8 @@ export function NewTicketView() {
     setStep('capture')
   }
 
+  // ----- Navegación entre pasos -----
   const goNext = () => {
-    if (step === 'participants') {
-      // Save and go home
-      if (ticketId) {
-        const t = tickets.find((x) => x.id === ticketId)
-        if (t && t.title === 'Ticket manual' && t.items.length === 0) {
-          toast.error('Añade al menos un item al ticket')
-          return
-        }
-        toast.success('Ticket guardado correctamente')
-        setView('home')
-      }
-      return
-    }
     const i = STEP_ORDER.indexOf(step)
     if (i < STEP_ORDER.length - 1) {
       setStep(STEP_ORDER[i + 1])
@@ -360,9 +386,12 @@ export function NewTicketView() {
     if (i > 0) {
       setStep(STEP_ORDER[i - 1])
     } else {
+      // Cancelar
       if (ticketId) {
+        // Si el ticket está vacío y en draft, lo borramos
         const t = tickets.find((x) => x.id === ticketId)
         if (t && t.items.length === 0 && t.participantIds.length === 0) {
+          // Borrarlo
           useAppStore.getState().deleteTicket(ticketId)
         }
       }
@@ -370,6 +399,7 @@ export function NewTicketView() {
     }
   }
 
+  // ----- Validaciones por paso -----
   const canProceed = (): boolean => {
     if (!ticket) return false
     switch (step) {
@@ -377,6 +407,9 @@ export function NewTicketView() {
         return ticket.items.length > 0
       case 'participants':
         return ticket.participantIds.length > 0
+      case 'assign':
+        // Todos los items deben tener al menos una asignación
+        return ticket.items.every((it) => it.assignments.length > 0)
       default:
         return true
     }
@@ -387,7 +420,9 @@ export function NewTicketView() {
     if (ticketId) updateTicket(ticketId, { title: val })
   }
 
+  // ----- Render por paso -----
   if (step === 'capture') {
+    // Etiqueta del motor seleccionado
     const engineLabel =
       settings.preferredEngine === 'server' ? 'IA en la nube' :
       settings.preferredEngine === 'tesseract' ? 'Escaneo básico' :
@@ -403,6 +438,7 @@ export function NewTicketView() {
           onCancel={() => setView('home')}
         />
         <div className="px-4 pb-4 space-y-2">
+          {/* Badge con motor activo o warning */}
           {hasEngine ? (
             <div className="flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-full bg-accent text-xs text-accent-foreground font-medium">
               <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
@@ -438,6 +474,7 @@ export function NewTicketView() {
         onChange={setOcrRawText}
         onContinue={handleOcrReviewContinue}
         onSkip={() => {
+          // Skip NER, usar solo el parser sobre el texto OCR
           if (ticketId && ocrRawText) {
             import('@/lib/scan/receipt-parser').then(({ parseReceiptText }) => {
               const parsed = parseReceiptText(ocrRawText)
@@ -529,7 +566,7 @@ export function NewTicketView() {
       )}
 
       {/* Imagen del ticket (preview colapsable) */}
-      {ticket.image && (step === 'review' || step === 'participants') && (
+      {ticket.image && (step === 'review' || step === 'participants' || step === 'assign') && (
         <details className="mb-4">
           <summary className="flex items-center gap-2 text-xs font-medium text-muted-foreground cursor-pointer">
             <Camera className="h-3.5 w-3.5" />
@@ -581,40 +618,64 @@ export function NewTicketView() {
         />
       )}
 
+      {/* Step: Assign */}
+      {step === 'assign' && <AssignmentEditor ticket={ticket} />}
+
+      {/* Step: Summary */}
+      {step === 'summary' && (
+        <TicketSummary
+          ticket={ticket}
+          onEdit={() => setStep('assign')}
+          onClose={() => {
+            toast.success('Ticket cerrado correctamente')
+            setView('home')
+          }}
+        />
+      )}
+
       {/* Botones de navegación inferiores */}
-      <div className="sticky bottom-20 left-0 right-0 mt-6 -mx-4 px-4 pt-3 pb-1 bg-gradient-to-t from-background via-background to-transparent">
-        <Button
-          onClick={goNext}
-          disabled={!canProceed()}
-          className="w-full"
-          size="lg"
-        >
-          {step === 'participants' ? (
-            <>
-              Guardar ticket
-              <Check className="h-4 w-4 ml-1" />
-            </>
-          ) : (
-            <>
-              Continuar
-              <ChevronRight className="h-4 w-4 ml-1" />
-            </>
+      {step !== 'summary' && (
+        <div className="sticky bottom-20 left-0 right-0 mt-6 -mx-4 px-4 pt-3 pb-1 bg-gradient-to-t from-background via-background to-transparent">
+          <Button
+            onClick={goNext}
+            disabled={!canProceed()}
+            className="w-full"
+            size="lg"
+          >
+            {step === 'assign' ? (
+              <>
+                Ver resumen
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </>
+            ) : (
+              <>
+                Continuar
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </>
+            )}
+          </Button>
+          {!canProceed() && step === 'review' && (
+            <p className="text-xs text-muted-foreground text-center mt-2">
+              Añade al menos un item para continuar
+            </p>
           )}
-        </Button>
-        {!canProceed() && step === 'review' && (
-          <p className="text-xs text-muted-foreground text-center mt-2">
-            Añade al menos un item para continuar
-          </p>
-        )}
-        {!canProceed() && step === 'participants' && (
-          <p className="text-xs text-muted-foreground text-center mt-2">
-            Selecciona al menos una persona
-          </p>
-        )}
-      </div>
+          {!canProceed() && step === 'participants' && (
+            <p className="text-xs text-muted-foreground text-center mt-2">
+              Selecciona al menos una persona
+            </p>
+          )}
+          {!canProceed() && step === 'assign' && (
+            <p className="text-xs text-amber-600 text-center mt-2">
+              Asigna todos los items antes de continuar
+            </p>
+          )}
+        </div>
+      )}
     </div>
   )
 }
+
+// ---------- Overlay de progreso de escaneo con fases detalladas ----------
 
 function ScanningProgressOverlay({
   imageUrl,
@@ -631,11 +692,12 @@ function ScanningProgressOverlay({
   const phases: { key: ScanProgress['phase']; label: string; icon: typeof Camera }[] = [
     { key: 'preprocessing', label: 'Mejorar imagen', icon: ImageIcon },
     { key: 'loading-model', label: 'Cargar motor IA', icon: Cpu },
-    { key: 'running-inference', label: 'Leer ticket', icon: Sparkles },
+    { key: 'running-inference', label: 'Leer ticket', icon: Wand2 },
     { key: 'parsing', label: 'Estructurar datos', icon: ListChecks },
   ]
   const currentPhaseIdx = phases.findIndex((p) => p.key === phase)
 
+  // Si la fase es loading-model y hay info de descarga, mostrar UX refinada
   const isDownloadingModel = phase === 'loading-model' && download && download.totalBytes > 0
 
   return (
@@ -656,13 +718,6 @@ function ScanningProgressOverlay({
           />
         </div>
       )}
-      <style>{`
-        @keyframes scanline {
-          0% { top: 0%; }
-          50% { top: 100%; }
-          100% { top: 0%; }
-        }
-      `}</style>
 
       <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
         <Sparkles className="h-6 w-6 text-primary animate-pulse" />
@@ -673,6 +728,7 @@ function ScanningProgressOverlay({
       </h3>
       <p className="text-sm text-muted-foreground max-w-xs mb-5">{message}</p>
 
+      {/* Barra de progreso con info detallada si hay descarga */}
       {isDownloadingModel && (
         <div className="w-full max-w-xs mb-5">
           <Progress value={percent ?? 0} className="h-2" />
@@ -701,6 +757,7 @@ function ScanningProgressOverlay({
         </div>
       )}
 
+      {/* Barra de progreso simple si hay porcentaje pero no es descarga */}
       {!isDownloadingModel && percent !== undefined && (
         <div className="w-full max-w-xs mb-5">
           <Progress value={percent} className="h-2" />
@@ -708,6 +765,7 @@ function ScanningProgressOverlay({
         </div>
       )}
 
+      {/* Fases */}
       <div className="w-full max-w-xs space-y-1.5">
         {phases.map((p, i) => {
           const Icon = p.icon
@@ -750,10 +808,22 @@ function ScanningProgressOverlay({
           )
         })}
       </div>
+
+      <style jsx>{`
+        @keyframes scanline {
+          0% { top: 0%; }
+          50% { top: 100%; }
+          100% { top: 0%; }
+        }
+      `}</style>
     </div>
   )
 }
 
+/**
+ * Vista de revisión del texto OCR antes de pasarlo al modelo NER.
+ * Permite al usuario ver y corregir el texto extraído por Tesseract.
+ */
 function OcrReviewView({
   rawText,
   imageUrl,
@@ -777,6 +847,7 @@ function OcrReviewView({
         back={onBack}
       />
 
+      {/* Imagen del ticket colapsable */}
       {imageUrl && (
         <details className="mb-4">
           <summary className="flex items-center gap-2 text-xs font-medium text-muted-foreground cursor-pointer">
@@ -793,6 +864,7 @@ function OcrReviewView({
         </details>
       )}
 
+      {/* Información */}
       <div className="mb-3 p-3 rounded-lg bg-accent/40 border border-border">
         <p className="text-xs text-muted-foreground">
           Este es el texto que el OCR ha extraído del ticket. Revísalo y
@@ -801,6 +873,7 @@ function OcrReviewView({
         </p>
       </div>
 
+      {/* Textarea editable */}
       <textarea
         value={rawText}
         onChange={(e) => onChange(e.target.value)}
@@ -809,11 +882,13 @@ function OcrReviewView({
         spellCheck={false}
       />
 
+      {/* Stats */}
       <div className="flex items-center justify-between mt-2 mb-4 text-xs text-muted-foreground">
         <span>{rawText.split(/\r?\n/).filter((l) => l.trim()).length} líneas</span>
         <span>{rawText.length} caracteres</span>
       </div>
 
+      {/* Botones */}
       <div className="space-y-2">
         <Button onClick={onContinue} className="w-full" size="lg" disabled={!rawText.trim()}>
           <Wand2 className="h-5 w-5 mr-2" />
@@ -833,6 +908,10 @@ function OcrReviewView({
   )
 }
 
+/**
+ * Convierte una fecha a ISO de forma segura.
+ * Devuelve null si la fecha es inválida (evita "Invalid time value").
+ */
 function safeDateToISO(dateStr?: string): string | null {
   if (!dateStr) return null
   try {
