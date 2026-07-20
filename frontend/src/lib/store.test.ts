@@ -57,37 +57,6 @@ describe('useAppStore — initial state', () => {
     expect(settings.defaultTaxRate).toBe(0.1)
     expect(settings.preferredEngine).toBe('tesseract-ner')
   })
-
-  it('starts at home view', () => {
-    expect(useAppStore.getState().currentView).toBe('home')
-  })
-})
-
-// ---------------------------------------------------------------------------
-// Navigation
-// ---------------------------------------------------------------------------
-
-describe('useAppStore — navigation', () => {
-  beforeEach(() => resetStore())
-
-  it('setView changes the view', () => {
-    useAppStore.getState().setView('contacts')
-    expect(useAppStore.getState().currentView).toBe('contacts')
-  })
-
-  it('openTicket sets ticket-detail view and activeTicketId', () => {
-    useAppStore.getState().openTicket('t1')
-    const s = useAppStore.getState()
-    expect(s.currentView).toBe('ticket-detail')
-    expect(s.activeTicketId).toBe('t1')
-  })
-
-  it('openGroup sets group-detail view and activeGroupId', () => {
-    useAppStore.getState().openGroup('g1')
-    const s = useAppStore.getState()
-    expect(s.currentView).toBe('group-detail')
-    expect(s.activeGroupId).toBe('g1')
-  })
 })
 
 // ---------------------------------------------------------------------------
@@ -232,13 +201,10 @@ describe('useAppStore — tickets', () => {
     expect(useAppStore.getState().tickets[0].title).toBe('Lunch')
   })
 
-  it('deleteTicket removes ticket and resets view if active', () => {
+  it('deleteTicket removes ticket', () => {
     const ticket = useAppStore.getState().addTicket({ title: 'Temp' })
-    useAppStore.getState().openTicket(ticket.id)
-    expect(useAppStore.getState().currentView).toBe('ticket-detail')
     useAppStore.getState().deleteTicket(ticket.id)
     expect(useAppStore.getState().tickets).toHaveLength(0)
-    expect(useAppStore.getState().currentView).toBe('home')
   })
 })
 
@@ -373,11 +339,10 @@ describe('useAppStore — profile & settings', () => {
 describe('useAppStore — resetAll', () => {
   beforeEach(() => resetStore())
 
-  it('resets all data to defaults while staying at home', () => {
+  it('resets all data to defaults', () => {
     useAppStore.getState().addPerson('Alice')
     useAppStore.getState().addGroup('Friends')
     useAppStore.getState().addTicket({ title: 'Dinner' })
-    useAppStore.getState().setView('settings')
 
     useAppStore.getState().resetAll()
 
@@ -385,7 +350,6 @@ describe('useAppStore — resetAll', () => {
     expect(s.people).toEqual([])
     expect(s.groups).toEqual([])
     expect(s.tickets).toEqual([])
-    expect(s.currentView).toBe('home')
   })
 })
 
@@ -439,11 +403,19 @@ describe('persistence — merge migration', () => {
     // verify via store state instead to avoid flaky environment-dependent assertions
   })
 
-  it('persist partialize excludes _startManual', () => {
-    useAppStore.getState().addPerson('Alice')
+  it('persist partialize includes draftTicketId', () => {
+    const ticket = useAppStore.getState().addTicket({ title: 'Draft', status: 'draft' })
+    useAppStore.getState().setDraftTicketId(ticket.id)
     const state = useAppStore.getState()
-    // _startManual should exist in store but should be excluded from persisted state
-    expect(state._startManual).toBe(false)
+    expect(state.draftTicketId).toBe(ticket.id)
+  })
+
+  it('clearDraftTicketId resets the draft pointer', () => {
+    const ticket = useAppStore.getState().addTicket({ title: 'Draft', status: 'draft' })
+    useAppStore.getState().setDraftTicketId(ticket.id)
+    expect(useAppStore.getState().draftTicketId).toBe(ticket.id)
+    useAppStore.getState().clearDraftTicketId()
+    expect(useAppStore.getState().draftTicketId).toBeNull()
   })
 
   it('merge function adds default fields to legacy tickets', () => {

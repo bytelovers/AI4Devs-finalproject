@@ -155,17 +155,6 @@ export interface ParsedTicket {
   currency?: string
 }
 
-/** Vista activa de la SPA. */
-export type ViewName =
-  | 'home'
-  | 'new-ticket'
-  | 'ticket-detail'
-  | 'contacts'
-  | 'groups'
-  | 'settings'
-  | 'feature-flags'
-  | 'group-detail'
-
 /** Resultado del reparto para una persona. */
 export interface PersonShare {
   personId: ID

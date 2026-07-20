@@ -12,6 +12,7 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react'
 import * as Comlink from 'comlink'
+import { useNavigate } from 'react-router-dom'
 import { Loader2, AlertCircle, RefreshCw, CheckCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { CameraCapture } from './CameraCapture'
@@ -51,6 +52,7 @@ export function CameraScanFlow({ onClose, onTicketCreated }: CameraScanFlowProps
   const [createdTicketId, setCreatedTicketId] = useState<string | null>(null)
 
   const abortRef = useRef(false)
+  const navigate = useNavigate()
 
   // Cleanup worker refs on unmount
   useEffect(() => {
@@ -60,7 +62,6 @@ export function CameraScanFlow({ onClose, onTicketCreated }: CameraScanFlowProps
   }, [])
 
   const addTicket = useAppStore((s) => s.addTicket)
-  const openTicket = useAppStore((s) => s.openTicket)
   const preferredEngine = useAppStore((s) => s.settings.preferredEngine)
 
   const handleCapture = useCallback(
@@ -135,7 +136,7 @@ export function CameraScanFlow({ onClose, onTicketCreated }: CameraScanFlowProps
         setPhase('complete')
 
         // Navigate to ticket
-        openTicket(ticket.id)
+        navigate(`/tickets/${ticket.id}`)
         if (onTicketCreated) onTicketCreated(ticket.id)
       } catch (err: unknown) {
         if (abortRef.current) return
@@ -146,7 +147,7 @@ export function CameraScanFlow({ onClose, onTicketCreated }: CameraScanFlowProps
         setPhase('error')
       }
     },
-    [addTicket, openTicket, preferredEngine, capturedImage, onTicketCreated]
+    [addTicket, preferredEngine, capturedImage, onTicketCreated, navigate]
   )
 
   const handleRetry = useCallback(() => {

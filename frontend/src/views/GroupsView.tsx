@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useAppStore } from '@/lib/store'
 import { PageHeader, EmptyState } from '@/components/ui/EmptyState'
 import { Avatar, AvatarStack } from '@/components/ui/Avatar'
@@ -47,7 +48,7 @@ export function GroupsView() {
   const deleteGroup = useAppStore((s) => s.deleteGroup)
   const addMemberToGroup = useAppStore((s) => s.addMemberToGroup)
   const removeMemberFromGroup = useAppStore((s) => s.removeMemberFromGroup)
-  const openGroup = useAppStore((s) => s.openGroup)
+  const navigate = useNavigate()
   const [showAdd, setShowAdd] = useState(false)
   const [nameInput, setNameInput] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -140,7 +141,7 @@ export function GroupsView() {
                       <Folder className="h-5 w-5" />
                     </div>
                     <button
-                      onClick={() => openGroup(group.id)}
+                      onClick={() => navigate(`/groups/${group.id}`)}
                       className="flex-1 text-left min-w-0"
                     >
                       <p className="font-semibold text-foreground truncate">
@@ -234,12 +235,12 @@ export function GroupsView() {
 }
 
 export function GroupDetailView() {
-  const groupId = useAppStore((s) => s.activeGroupId)
+  const { groupId } = useParams<{ groupId: string }>()
   const group = useAppStore((s) => s.groups.find((g) => g.id === groupId))
   const people = useAppStore((s) => s.people)
   const addMemberToGroup = useAppStore((s) => s.addMemberToGroup)
   const removeMemberFromGroup = useAppStore((s) => s.removeMemberFromGroup)
-  const setView = useAppStore((s) => s.setView)
+  const navigate = useNavigate()
   const [sheetOpen, setSheetOpen] = useState(false)
 
   if (!group) {
@@ -248,7 +249,7 @@ export function GroupDetailView() {
         <EmptyState
           icon={Folder}
           title="Grupo no encontrado"
-          action={{ label: 'Volver', onClick: () => setView('groups') }}
+          action={{ label: 'Volver', onClick: () => navigate('/groups') }}
         />
       </div>
     )
@@ -264,7 +265,7 @@ export function GroupDetailView() {
       <PageHeader
         title={group.name}
         subtitle={`${members.length} ${members.length === 1 ? 'miembro' : 'miembros'}`}
-        back={() => setView('groups')}
+        back={() => navigate('/groups')}
         action={
           <Button
             size="sm"

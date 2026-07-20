@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '@/lib/store'
 import { PageHeader, EmptyState } from '@/components/ui/EmptyState'
 import { Avatar } from '@/components/ui/Avatar'
@@ -35,7 +36,7 @@ export function ContactsView() {
   const deletePerson = useAppStore((s) => s.deletePerson)
   const tickets = useAppStore((s) => s.tickets)
   const groups = useAppStore((s) => s.groups)
-  const setView = useAppStore((s) => s.setView)
+  const navigate = useNavigate()
   const [showAdd, setShowAdd] = useState(false)
   const [nameInput, setNameInput] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -82,7 +83,7 @@ export function ContactsView() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => setView('groups')}
+              onClick={() => navigate('/groups')}
               className="shrink-0"
             >
               <FolderPlus className="h-4 w-4 mr-1" />
@@ -207,7 +208,7 @@ export function ContactsView() {
             {groups.map((g) => (
               <button
                 key={g.id}
-                onClick={() => setView('groups')}
+                onClick={() => navigate('/groups')}
                 className="shrink-0 px-3 py-1.5 rounded-full bg-accent text-accent-foreground text-xs font-medium border border-border hover:bg-accent/80"
               >
                 {g.name} ({g.memberIds.length})
