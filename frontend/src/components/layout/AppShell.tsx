@@ -5,11 +5,12 @@ import { useLocation, NavLink, Outlet } from 'react-router-dom'
 import { Home, Plus, Users, Folder, Settings } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
+// NOTE: /tickets/new at index 2 so the "+" button sits centered (pos 3 of 5)
 const NAV_ITEMS = [
   { path: '/', label: 'Inicio', icon: Home },
   { path: '/contacts', label: 'Contactos', icon: Users },
-  { path: '/groups', label: 'Grupos', icon: Folder },
   { path: '/tickets/new', label: 'Nuevo', icon: Plus },
+  { path: '/groups', label: 'Grupos', icon: Folder },
   { path: '/settings', label: 'Ajustes', icon: Settings },
 ] as const
 
@@ -38,10 +39,10 @@ export function AppShell() {
 
       {/* Bottom navigation with NavLink */}
       <nav
-        className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md border-t border-border bg-background/95 backdrop-blur-md z-40 safe-bottom"
+        className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md border-t border-border bg-background/95 backdrop-blur-md z-40 safe-bottom overflow-visible"
         aria-label="Navegación principal"
       >
-        <div className="grid grid-cols-5 h-16">
+        <div className="grid grid-cols-5 h-16 pt-2">
           {NAV_ITEMS.map((item) => (
             <NavLink
               key={item.path}
@@ -50,7 +51,7 @@ export function AppShell() {
                 cn(
                   'flex flex-col items-center justify-center gap-0.5 transition-colors',
                   item.path === '/tickets/new'
-                    ? 'bg-primary text-primary-foreground'
+                    ? 'text-primary-foreground'
                     : isActive
                     ? 'text-primary'
                     : 'text-muted-foreground active:bg-accent/40'
@@ -60,7 +61,7 @@ export function AppShell() {
             >
               {({ isActive }) => (
                 item.path === '/tickets/new' ? (
-                  <div className="h-11 w-11 rounded-full flex items-center justify-center shadow-lg shadow-primary/30">
+                  <div className="h-12 w-12 rounded-full flex items-center justify-center bg-primary text-primary-foreground shadow-lg shadow-primary/30 -translate-y-3">
                     <item.icon className="h-6 w-6" strokeWidth={2.5} />
                   </div>
                 ) : (
