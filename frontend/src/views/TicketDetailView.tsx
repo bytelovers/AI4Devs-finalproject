@@ -8,7 +8,7 @@ import { AssignmentEditor } from '@/components/ticket/AssignmentEditor'
 import { PeopleGroupsManager } from '@/components/people/PeopleGroupsManager'
 import { PageHeader, EmptyState } from '@/components/ui/EmptyState'
 import { Button } from '@/components/ui/button'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Receipt, Edit3, ListChecks, Users, Pencil } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -24,6 +24,13 @@ export function TicketDetailView() {
   const [tab, setTab] = useState<DetailTab>('summary')
   const [editingTitle, setEditingTitle] = useState(false)
   const [titleDraft, setTitleDraft] = useState(ticket?.title ?? '')
+
+  // Sync titleDraft when navigating between different tickets
+  useEffect(() => {
+    if (!editingTitle) {
+      setTitleDraft(ticket?.title ?? '')
+    }
+  }, [ticket?.title, editingTitle])
 
   if (!ticket) {
     return (

@@ -12,7 +12,6 @@ import { NewTicketReviewView } from '@/views/NewTicketReviewView';
 import { NewTicketParticipantsView } from '@/views/NewTicketParticipantsView';
 import { NewTicketAssignView } from '@/views/NewTicketAssignView';
 import { NewTicketSummaryView } from '@/views/NewTicketSummaryView';
-import { OcrReviewView } from '@/views/OcrReviewView';
 import { ContactsView } from '@/views/ContactsView';
 import { GroupsView, GroupDetailView } from '@/views/GroupsView';
 import { TicketDetailView } from '@/views/TicketDetailView';
@@ -26,8 +25,6 @@ import {
   participantsLoader,
   assignLoader,
   summaryLoader,
-  scanningLoader,
-  ocrReviewLoader,
 } from '@/lib/wizard-loaders';
 
 function NotFound() {
@@ -63,8 +60,6 @@ function AppRouter() {
             <Route path="tickets/new/participants" element={<NewTicketParticipantsView />} loader={participantsLoader as any} />
             <Route path="tickets/new/assign" element={<NewTicketAssignView />} loader={assignLoader as any} />
             <Route path="tickets/new/summary" element={<NewTicketSummaryView />} loader={summaryLoader as any} />
-            <Route path="tickets/new/scanning" element={<div />} loader={scanningLoader as any} />
-            <Route path="tickets/new/ocr-review" element={<OcrReviewView />} loader={ocrReviewLoader as any} />
             <Route path="tickets/:ticketId" element={<TicketDetailView />} />
             <Route path="settings" element={<SettingsView />} />
             <Route path="settings/feature-flags" element={<FeatureFlagsView />} />

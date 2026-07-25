@@ -27,7 +27,9 @@ export function useBlocker(when: boolean, message: string = '¿Descartar los cam
         blocker.reset()
       }
     }
-  }, [blocker, message])
+  }, [blocker.state, message])
+  // Note: depend on blocker.state (mutable) not blocker (stable reference)
+  // RRv7's useBlocker returns a stable blocker object; only blocker.state changes.
 
   return blocker
 }

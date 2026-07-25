@@ -362,6 +362,7 @@ export const useAppStore = create<AppState>()(
       resetAll: () =>
         set({
           ...DEFAULT_DATA,
+          draftTicketId: null,
         }),
     }),
     {

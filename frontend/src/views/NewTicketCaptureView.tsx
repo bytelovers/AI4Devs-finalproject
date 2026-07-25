@@ -56,9 +56,13 @@ export function NewTicketCaptureView() {
     [draftTicketId, updateTicket, navigate]
   )
 
+  const addTicketItem = useAppStore((s) => s.addTicketItem)
+
   const handleManualEntry = () => {
     if (draftTicketId) {
       updateTicket(draftTicketId, { title: 'Ticket manual' })
+      // Add an empty placeholder item so reviewLoader allows entry
+      addTicketItem(draftTicketId, { name: '', quantity: 1, unitPrice: 0 })
     }
     navigate('/tickets/new/review')
   }

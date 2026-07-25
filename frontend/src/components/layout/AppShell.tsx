@@ -57,23 +57,24 @@ export function AppShell() {
                 )
               }
               aria-label={item.label}
-              aria-current={({ isActive }) => (isActive ? 'page' : undefined)}
             >
-              {item.path === '/tickets/new' ? (
-                <div className="h-11 w-11 rounded-full flex items-center justify-center shadow-lg shadow-primary/30">
-                  <item.icon className="h-6 w-6" strokeWidth={2.5} />
-                </div>
-              ) : (
-                <>
-                  <item.icon
-                    className={cn(
-                      'h-5 w-5 transition-colors',
-                      ({ isActive }) => (isActive ? 'text-primary' : 'text-muted-foreground')
-                    )}
-                    strokeWidth={({ isActive }) => (isActive ? 2.5 : 2)}
-                  />
-                  <span className="text-[10px] font-medium">{item.label}</span>
-                </>
+              {({ isActive }) => (
+                item.path === '/tickets/new' ? (
+                  <div className="h-11 w-11 rounded-full flex items-center justify-center shadow-lg shadow-primary/30">
+                    <item.icon className="h-6 w-6" strokeWidth={2.5} />
+                  </div>
+                ) : (
+                  <>
+                    <item.icon
+                      className={cn(
+                        'h-5 w-5 transition-colors',
+                        isActive ? 'text-primary' : 'text-muted-foreground'
+                      )}
+                      strokeWidth={isActive ? 2.5 : 2}
+                    />
+                    <span className="text-[10px] font-medium">{item.label}</span>
+                  </>
+                )
               )}
             </NavLink>
           ))}
