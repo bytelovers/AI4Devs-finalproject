@@ -25,7 +25,10 @@ import { getEngines } from '@/lib/scan/capabilities'
 import type { EngineInfo } from '@/lib/scan/types'
 import { toast } from 'sonner'
 
-export function ScanEngineSelector({ detailed = false }: { detailed?: boolean }) {
+export function ScanEngineSelector({
+  detailed = false,
+  onDownloadModel,
+}: { detailed?: boolean; onDownloadModel?: () => void }) {
   const settings = useAppStore((s) => s.settings)
   const updateSettings = useAppStore((s) => s.updateSettings)
   const featureFlags = useAppStore((s) => s.featureFlags)
@@ -49,6 +52,10 @@ export function ScanEngineSelector({ detailed = false }: { detailed?: boolean })
   const handleSelect = async (engine: EngineInfo) => {
     if (engine.status === 'unavailable') return
     if (engine.name === 'florence2' && engine.status === 'needs-download') {
+      if (onDownloadModel) {
+        onDownloadModel()
+        return
+      }
       toast.info('Descarga el modelo Florence-2 desde el onboarding')
       return
     }
@@ -57,7 +64,8 @@ export function ScanEngineSelector({ detailed = false }: { detailed?: boolean })
 
   const isSelected = (engineName: string) => settings.preferredEngine === engineName
   const isDisabled = (engine: EngineInfo) =>
-    engine.status === 'unavailable' || (engine.name === 'florence2' && engine.status === 'needs-download')
+    engine.status === 'unavailable' ||
+    (engine.name === 'florence2' && engine.status === 'needs-download' && !onDownloadModel)
 
   const isFlorenceUnavailable = engines.some(
     (e) => e.name === 'florence2' && e.status === 'unavailable'

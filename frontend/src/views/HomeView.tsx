@@ -1,6 +1,6 @@
 'use client'
 
-import { useNavigate } from 'react-router-dom'
+import { useState } from 'react'
 import { useAppStore } from '@/lib/store'
 import { formatEUR, formatDate, computeShares, calcTicketTotal } from '@/lib/calc'
 import { EmptyState, PageHeader } from '@/components/ui/EmptyState'
@@ -12,22 +12,12 @@ import { Plus, Receipt, ScanLine, TrendingUp, ChevronRight, CheckCircle2 } from 
 export function HomeView() {
   const tickets = useAppStore((s) => s.tickets)
   const people = useAppStore((s) => s.people)
-  const navigate = useNavigate()
+  const setView = useAppStore((s) => s.setView)
+  const openTicket = useAppStore((s) => s.openTicket)
+  const setStartManual = (v: boolean) => useAppStore.setState({ _startManual: v })
+  const [showAll, setShowAll] = useState(false)
 
-  /**
-   * Spec FR-007: User starts new ticket at `/tickets/new`.
-   * Navigate to the parent route; the parent loader ensures a draft exists
-   * and redirects to the appropriate step.
-   */
-  const handleNewTicket = () => {
-    navigate('/tickets/new')
-  }
-
-  const handleOpenTicket = (id: string) => {
-    navigate(`/tickets/${id}`)
-  }
-
-  const recentTickets = tickets.slice(0, 5)
+  const displayedTickets = showAll ? tickets : tickets.slice(0, 5)
 
   // Stats
   const totalThisMonth = tickets
@@ -57,7 +47,10 @@ export function HomeView() {
             <Button
               size="sm"
               variant="secondary"
-              onClick={handleNewTicket}
+              onClick={() => {
+                setStartManual(false)
+                setView('new-ticket')
+              }}
               className="bg-white text-primary hover:bg-white/90 font-semibold"
             >
               <ScanLine className="h-4 w-4 mr-1.5" />
@@ -66,7 +59,10 @@ export function HomeView() {
             <Button
               size="sm"
               variant="outline"
-              onClick={handleNewTicket}
+              onClick={() => {
+                setStartManual(true)
+                setView('new-ticket')
+              }}
               className="bg-white/10 border-white/30 text-white hover:bg-white/20 backdrop-blur-sm"
             >
               <Plus className="h-4 w-4 mr-1.5" />
@@ -118,30 +114,33 @@ export function HomeView() {
         <h2 className="text-base font-semibold text-foreground">
           Tickets recientes
         </h2>
-        {tickets.length > 0 && (
+        {tickets.length > 5 && (
           <button
-            onClick={() => navigate('/tickets')}
+            onClick={() => setShowAll(!showAll)}
             className="text-xs font-medium text-primary"
           >
-            Ver todo
+            {showAll ? 'Ver recientes' : 'Ver todo'}
           </button>
         )}
       </div>
 
-      {recentTickets.length === 0 ? (
+      {displayedTickets.length === 0 ? (
         <EmptyState
           icon={Receipt}
           title="Aún no tienes tickets"
           description="Escanea tu primer ticket de restaurante para empezar a dividirlo entre tus contactos."
           action={{
             label: 'Crear primer ticket',
-            onClick: handleNewTicket,
+            onClick: () => {
+                setStartManual(false)
+                setView('new-ticket')
+              },
           }}
           className="py-8"
         />
       ) : (
         <div className="space-y-2.5">
-          {recentTickets.map((ticket) => {
+          {displayedTickets.map((ticket) => {
             const total = calcTicketTotal(ticket)
             const participants = ticket.participantIds
               .map((id) => people.find((p) => p.id === id))
@@ -158,7 +157,7 @@ export function HomeView() {
             return (
               <button
                 key={ticket.id}
-                onClick={() => handleOpenTicket(ticket.id)}
+                onClick={() => openTicket(ticket.id)}
                 className="w-full text-left"
               >
                 <Card className="p-4 hover:bg-accent/40 transition-colors active:scale-[0.99]">
