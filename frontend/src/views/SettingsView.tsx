@@ -146,9 +146,9 @@ export function SettingsView() {
               step="0.5"
               min="0"
               max="100"
-              value={settings.defaultTipRate * 100}
+              value={settings.defaultTipPercentage * 100}
               onChange={(e) =>
-                updateSettings({ defaultTipRate: parseFloat(e.target.value) / 100 })
+                updateSettings({ defaultTipPercentage: parseFloat(e.target.value) / 100 })
               }
               className="mt-1"
             />
