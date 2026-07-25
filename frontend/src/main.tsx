@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 import './styles/variables.css';
 import './styles/global.css';
 import { AppShell } from '@/components/layout/AppShell';
@@ -17,15 +17,6 @@ import { GroupsView, GroupDetailView } from '@/views/GroupsView';
 import { TicketDetailView } from '@/views/TicketDetailView';
 import { SettingsView } from '@/views/SettingsView';
 import { FeatureFlagsView } from '@/views/FeatureFlagsView';
-import { ServiceWorkerRegister } from '@/components/pwa/ServiceWorkerRegister';
-import {
-  newTicketParentLoader,
-  captureLoader,
-  reviewLoader,
-  participantsLoader,
-  assignLoader,
-  summaryLoader,
-} from '@/lib/wizard-loaders';
 
 function NotFound() {
   return (
@@ -42,37 +33,38 @@ function NotFound() {
   );
 }
 
-function AppRouter() {
-  return (
-    <>
-      <ServiceWorkerRegister />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<AppShell />}>
-            <Route index element={<HomeView />} />
-            <Route path="contacts" element={<ContactsView />} />
-            <Route path="groups" element={<GroupsView />} />
-            <Route path="groups/:groupId" element={<GroupDetailView />} />
-            <Route path="tickets" element={<TicketsListView />} />
-            <Route path="tickets/new" element={<NewTicketShell />} loader={newTicketParentLoader as any} />
-            <Route path="tickets/new/capture" element={<NewTicketCaptureView />} loader={captureLoader as any} />
-            <Route path="tickets/new/review" element={<NewTicketReviewView />} loader={reviewLoader as any} />
-            <Route path="tickets/new/participants" element={<NewTicketParticipantsView />} loader={participantsLoader as any} />
-            <Route path="tickets/new/assign" element={<NewTicketAssignView />} loader={assignLoader as any} />
-            <Route path="tickets/new/summary" element={<NewTicketSummaryView />} loader={summaryLoader as any} />
-            <Route path="tickets/:ticketId" element={<TicketDetailView />} />
-            <Route path="settings" element={<SettingsView />} />
-            <Route path="settings/feature-flags" element={<FeatureFlagsView />} />
-          </Route>
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </>
-  );
-}
+const router = createBrowserRouter([
+  {
+    path: '/',
+    element: <AppShell />,
+    children: [
+      { index: true, element: <HomeView /> },
+      { path: 'contacts', element: <ContactsView /> },
+      { path: 'groups', element: <GroupsView /> },
+      { path: 'groups/:groupId', element: <GroupDetailView /> },
+      { path: 'tickets', element: <TicketsListView /> },
+      {
+        path: 'tickets/new',
+        element: <NewTicketShell />,
+        children: [
+          { index: true, element: <Navigate to="capture" replace /> },
+          { path: 'capture', element: <NewTicketCaptureView /> },
+          { path: 'review', element: <NewTicketReviewView /> },
+          { path: 'participants', element: <NewTicketParticipantsView /> },
+          { path: 'assign', element: <NewTicketAssignView /> },
+          { path: 'summary', element: <NewTicketSummaryView /> },
+        ],
+      },
+      { path: 'tickets/:ticketId', element: <TicketDetailView /> },
+      { path: 'settings', element: <SettingsView /> },
+      { path: 'settings/feature-flags', element: <FeatureFlagsView /> },
+    ],
+  },
+  { path: '*', element: <NotFound /> },
+]);
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <AppRouter />
+    <RouterProvider router={router} />
   </React.StrictMode>
 );
