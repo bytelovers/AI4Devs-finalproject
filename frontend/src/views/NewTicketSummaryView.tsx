@@ -6,8 +6,6 @@ import { TicketSummary } from '@/components/ticket/TicketSummary'
 import { PageHeader } from '@/components/ui/EmptyState'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-import { useBlocker } from '@/hooks/useBlocker'
-import { BLOCKER_CHECKS, BLOCKER_MESSAGES } from '@/lib/wizard-loaders'
 
 export function NewTicketSummaryView() {
   const draftTicketId = useAppStore((s) => s.draftTicketId)
@@ -17,9 +15,6 @@ export function NewTicketSummaryView() {
   const navigate = useNavigate()
 
   const ticket = draftTicketId ? (tickets.find((t) => t.id === draftTicketId) ?? null) : null
-
-  // Blocker: summary always blocks until closed (per spec table)
-  useBlocker(ticket ? BLOCKER_CHECKS.summary(ticket) : false, BLOCKER_MESSAGES.summary)
 
   if (!ticket) {
     return (

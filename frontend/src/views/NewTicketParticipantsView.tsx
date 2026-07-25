@@ -6,8 +6,6 @@ import { ParticipantPicker } from '@/components/ticket/ParticipantPicker'
 import { PageHeader } from '@/components/ui/EmptyState'
 import { Button } from '@/components/ui/button'
 import { ChevronRight } from 'lucide-react'
-import { useBlocker } from '@/hooks/useBlocker'
-import { BLOCKER_CHECKS, BLOCKER_MESSAGES } from '@/lib/wizard-loaders'
 
 export function NewTicketParticipantsView() {
   const draftTicketId = useAppStore((s) => s.draftTicketId)
@@ -16,9 +14,6 @@ export function NewTicketParticipantsView() {
   const navigate = useNavigate()
 
   const ticket = draftTicketId ? (tickets.find((t) => t.id === draftTicketId) ?? null) : null
-
-  // Blocker: dirty participant selection protection
-  useBlocker(ticket ? BLOCKER_CHECKS.participants(ticket) : false, BLOCKER_MESSAGES.participants)
 
   if (!ticket) {
     return (

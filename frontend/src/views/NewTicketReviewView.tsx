@@ -9,8 +9,6 @@ import { Input } from '@/components/ui/input'
 import { TicketItemsEditor } from '@/components/ticket/TicketItemsEditor'
 import { ScanSuccessBanner } from '@/components/ticket/TicketItemsEditor'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { useBlocker } from '@/hooks/useBlocker'
-import { BLOCKER_CHECKS, BLOCKER_MESSAGES } from '@/lib/wizard-loaders'
 
 export function NewTicketReviewView() {
   const draftTicketId = useAppStore((s) => s.draftTicketId)
@@ -29,9 +27,6 @@ export function NewTicketReviewView() {
     navigate('/tickets/new/participants')
   }
 
-  // Blocker: dirty edits protection
-  useBlocker(ticket ? BLOCKER_CHECKS.review(ticket) : false, BLOCKER_MESSAGES.review)
-
   if (!ticket) {
     return (
       <div className="px-4 py-12 text-center">
@@ -44,7 +39,7 @@ export function NewTicketReviewView() {
   }
 
   return (
-    <div className="px-4 pt-4">
+    <div className="px-4 pt-4 pb-28">
       <PageHeader
         title="Revisar ticket"
         subtitle="Confirma los items y los impuestos"

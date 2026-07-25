@@ -6,8 +6,6 @@ import { AssignmentEditor } from '@/components/ticket/AssignmentEditor'
 import { PageHeader } from '@/components/ui/EmptyState'
 import { Button } from '@/components/ui/button'
 import { ChevronRight } from 'lucide-react'
-import { useBlocker } from '@/hooks/useBlocker'
-import { BLOCKER_CHECKS, BLOCKER_MESSAGES } from '@/lib/wizard-loaders'
 
 export function NewTicketAssignView() {
   const draftTicketId = useAppStore((s) => s.draftTicketId)
@@ -15,9 +13,6 @@ export function NewTicketAssignView() {
   const navigate = useNavigate()
 
   const ticket = draftTicketId ? (tickets.find((t) => t.id === draftTicketId) ?? null) : null
-
-  // Blocker: dirty assignments protection
-  useBlocker(ticket ? BLOCKER_CHECKS.assign(ticket) : false, BLOCKER_MESSAGES.assign)
 
   if (!ticket) {
     return (
