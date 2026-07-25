@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '@/lib/store'
 import { PageHeader } from '@/components/ui/EmptyState'
 import { Card } from '@/components/ui/card'
@@ -16,7 +17,7 @@ import { toast } from 'sonner'
 export function FeatureFlagsView() {
   const featureFlags = useAppStore((s) => s.featureFlags)
   const updateFeatureFlags = useAppStore((s) => s.updateFeatureFlags)
-  const setView = useAppStore((s) => s.setView)
+  const navigate = useNavigate()
 
   const flags = [
     {
@@ -50,7 +51,7 @@ export function FeatureFlagsView() {
       <PageHeader
         title="Configuración avanzada"
         subtitle="Motor de escaneo y opciones de desarrollador"
-        back={() => setView('settings')}
+        back={() => navigate('/settings')}
       />
 
       {/* === Sección: Motor de escaneo (modo técnico) === */}

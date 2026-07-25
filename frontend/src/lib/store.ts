@@ -10,7 +10,6 @@ import type {
   TicketItem,
   TicketDiscount,
   ID,
-  ViewName,
 } from './types'
 import {
   AVATAR_COLORS,
@@ -22,46 +21,20 @@ import {
 } from './calc'
 
 interface AppState extends AppData {
-  // Navegación SPA
-  currentView: ViewName
-  activeTicketId?: ID
-  activeGroupId?: ID
-  // Acciones de navegación
-  setView: (v: ViewName) => void
-  openTicket: (id: ID) => void
-  openGroup: (id: ID) => void
-  // Acciones de personas
-  addPerson: (name: string) => Person
-  updatePerson: (id: ID, patch: Partial<Person>) => void
-  deletePerson: (id: ID) => void
-  // Acciones de grupos
-  addGroup: (name: string, memberIds?: ID[]) => Group
-  updateGroup: (id: ID, patch: Partial<Group>) => void
-  deleteGroup: (id: ID) => void
-  addMemberToGroup: (groupId: ID, personId: ID) => void
-  removeMemberFromGroup: (groupId: ID, personId: ID) => void
-  // Acciones de tickets
-  addTicket: (partial: Partial<Ticket>) => Ticket
-  updateTicket: (id: ID, patch: Partial<Ticket>) => void
-  deleteTicket: (id: ID) => void
-  // Items del ticket
-  updateTicketItem: (ticketId: ID, itemId: ID, patch: Partial<TicketItem>) => void
-  addTicketItem: (ticketId: ID, item?: Partial<TicketItem>) => void
-  deleteTicketItem: (ticketId: ID, itemId: ID) => void
-  // Descuentos del ticket
-  addTicketDiscount: (ticketId: ID, discount?: Partial<TicketDiscount>) => void
-  updateTicketDiscount: (ticketId: ID, discountId: ID, patch: Partial<TicketDiscount>) => void
-  deleteTicketDiscount: (ticketId: ID, discountId: ID) => void
-  // Recalcular totales
-  recalcTicket: (ticketId: ID) => void
-  // Perfil y ajustes
-  updateProfile: (patch: Partial<AppData['profile']>) => void
-  updateSettings: (patch: Partial<AppData['settings']>) => void
-  updateFeatureFlags: (patch: Partial<AppData['featureFlags']>) => void
-  // Reset total
-  resetAll: () => void
-  // Flag temporal para modo manual
-  _startManual: boolean
+  /**
+   * ID of the active draft ticket used by the New-Ticket wizard.
+   * Persisted so refresh on a wizard step restores the same draft.
+   * Cleared when the wizard completes or the draft is discarded.
+   */
+  draftTicketId: ID | null
+  /**
+   * Set the active draft ticket ID (wizard entry).
+   */
+  setDraftTicketId: (id: ID) => void
+  /**
+   * Clear the active draft ticket ID (wizard exit).
+   */
+  clearDraftTicketId: () => void
 }
 
 const DEFAULT_DATA: AppData = {
@@ -94,16 +67,9 @@ export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
       ...DEFAULT_DATA,
-      currentView: 'home',
-      // Flag temporal: si es true, NewTicketView empieza en modo manual (sin cámara)
-      _startManual: false,
-
-      // ---------- Navegación ----------
-      setView: (v) => set({ currentView: v }),
-      openTicket: (id) =>
-        set({ currentView: 'ticket-detail', activeTicketId: id }),
-      openGroup: (id) =>
-        set({ currentView: 'group-detail', activeGroupId: id }),
+      draftTicketId: null,
+      setDraftTicketId: (id) => set({ draftTicketId: id }),
+      clearDraftTicketId: () => set({ draftTicketId: null }),
 
       // ---------- Personas ----------
       addPerson: (name) => {
@@ -245,10 +211,6 @@ export const useAppStore = create<AppState>()(
       deleteTicket: (id) =>
         set((s) => ({
           tickets: s.tickets.filter((t) => t.id !== id),
-          currentView:
-            s.activeTicketId === id ? 'home' : s.currentView,
-          activeTicketId:
-            s.activeTicketId === id ? undefined : s.activeTicketId,
         })),
 
       // ---------- Items ----------
@@ -400,7 +362,7 @@ export const useAppStore = create<AppState>()(
       resetAll: () =>
         set({
           ...DEFAULT_DATA,
-          currentView: 'home',
+          draftTicketId: null,
         }),
     }),
     {
@@ -414,12 +376,17 @@ export const useAppStore = create<AppState>()(
         settings: state.settings,
         featureFlags: state.featureFlags,
         version: state.version,
-        // NO persistir _startManual (es temporal)
+        // Persistir draftTicketId para que refresh en wizard restaure el draft
+        draftTicketId: state.draftTicketId,
       }),
       // Migración: asegura que tickets antiguos tengan el campo discounts
       // y que cada descuento tenga mode (amount/percentage)
       merge: (persistedState: any, currentState: AppState) => {
         const merged = { ...currentState, ...(persistedState || {}) }
+        // Asegurar draftTicketId tiene forma correcta (null si undefined en persistencia)
+        if (merged.draftTicketId === undefined) {
+          merged.draftTicketId = null
+        }
         if (Array.isArray(merged.tickets)) {
           merged.tickets = merged.tickets.map((t: any) => ({
             ...t,

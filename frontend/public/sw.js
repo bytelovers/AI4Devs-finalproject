@@ -1,0 +1,203 @@
+/**
+ * Service Worker para Cuadra — soporte offline-first.
+ *
+ * Estrategia:
+ * 1. En instalación: precachear la página principal
+ * 2. En activate: tomar control inmediatamente (clients.claim)
+ * 3. En fetch: 
+ *    - Navegación: cache-first (si no hay, network y cachear)
+ *    - Recursos estáticos (_next, fonts, etc.): stale-while-revalidate
+ *    - Tesseract/HuggingFace: no interceptar (tienen su propio caché)
+ *    - API: no interceptar
+ * 
+ * Clave: cacheamos TODAS las respuestas GET exitosas para que
+ * en el siguiente refresco (incluso offline) todo esté disponible.
+ */
+
+const CACHE_NAME = 'cuadra-app-v3'
+
+// URLs a precachear en instalación
+const PRECACHE_URLS = [
+  '/',
+  '/manifest.webmanifest',
+  '/icon.svg',
+]
+
+// Instalación: precachear recursos básicos
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(PRECACHE_URLS).catch((err) => {
+        console.warn('[sw] Error precacheando:', err)
+      })
+    })
+  )
+  // Tomar control inmediatamente
+  self.skipWaiting()
+})
+
+// Activación: limpiar cachés antiguas, tomar control y hacer backfill
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames
+          .filter((name) => 
+            name !== CACHE_NAME && 
+            !name.includes('transformer') && 
+            !name.includes('onnx') && 
+            !name.includes('huggingface') && 
+            !name.includes('tesseract')
+          )
+          .map((name) => caches.delete(name))
+      )
+    }).then(() => {
+      // Tomar control de todos los clientes inmediatamente
+      return self.clients.claim()
+    }).then(() => {
+      // BACKFILL: cachear los recursos de la página actual que se cargaron
+      // ANTES de que el SW estuviera activo. Esto es CRÍTICO para que
+      // el refresco en modo avión funcione.
+      return caches.open(CACHE_NAME).then((cache) => {
+        return self.clients.matchAll({ type: 'window' }).then((clients) => {
+          const promises = []
+          for (const client of clients) {
+            // 1. Cachear el HTML de la página actual
+            promises.push(
+              fetch(client.url, { mode: 'same-origin' })
+                .then((response) => {
+                  if (response && response.status === 200) {
+                    // Guardar el HTML
+                    const htmlClone = response.clone()
+                    cache.put(client.url, htmlClone)
+                    // 2. Extraer recursos del HTML (scripts, css, fonts)
+                    return response.text()
+                  }
+                  return null
+                })
+                .then((html) => {
+                  if (!html) return
+                  // Buscar todas las URLs de recursos en el HTML
+                  const resourceUrls = new Set()
+                  // Scripts: src="..."
+                  const scriptMatches = html.matchAll(/<script[^>]+src="([^"]+)"/g)
+                  for (const m of scriptMatches) resourceUrls.add(m[1])
+                  // CSS: href="..."
+                  const linkMatches = html.matchAll(/<link[^>]+href="([^"]+)"/g)
+                  for (const m of linkMatches) {
+                    if (m[0].includes('stylesheet') || m[0].includes('preload') || m[0].includes('icon')) {
+                      resourceUrls.add(m[1])
+                    }
+                  }
+                  // Cachear cada recurso
+                  for (const url of resourceUrls) {
+                    const fullUrl = url.startsWith('/') 
+                      ? new URL(url, self.location.origin).href 
+                      : url
+                    if (fullUrl.startsWith(self.location.origin)) {
+                      promises.push(
+                        fetch(fullUrl, { mode: 'same-origin' })
+                          .then((res) => {
+                            if (res && res.status === 200) {
+                              return cache.put(fullUrl, res)
+                            }
+                          })
+                          .catch(() => {})
+                      )
+                    }
+                  }
+                })
+                .catch(() => {})
+            )
+          }
+          return Promise.all(promises)
+        })
+      })
+    })
+  )
+})
+
+// Fetch: interceptar todas las peticiones
+self.addEventListener('fetch', (event) => {
+  const { request } = event
+
+  // Solo interceptar GET
+  if (request.method !== 'GET') return
+
+  // No interceptar requests de Tesseract (tiene su propio caché)
+  if (request.url.includes('tessdata') || request.url.includes('projectnaptha')) {
+    return
+  }
+
+  // No interceptar requests de modelos de HuggingFace/Transformers.js
+  if (request.url.includes('huggingface.co') || request.url.includes('cdn-lfs')) {
+    return
+  }
+
+  // No interceptar API
+  if (request.url.includes('/api/')) {
+    return
+  }
+
+  // No interceptar WebSocket
+  if (request.url.startsWith('ws://') || request.url.startsWith('wss://')) {
+    return
+  }
+
+  // Para todo lo demás: stale-while-revalidate
+  event.respondWith(
+    caches.match(request).then((cachedResponse) => {
+      // Función para cachear una respuesta válida
+      const cacheResponse = (response) => {
+        if (response && response.status === 200 && response.type === 'basic') {
+          const clone = response.clone()
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, clone)
+          })
+        }
+        return response
+      }
+
+      // Función para manejar el fallo de red
+      const handleNetworkError = () => {
+        // Si es navegación y tenemos la página principal cacheada, usarla
+        if (request.mode === 'navigate') {
+          return caches.match('/').then((cachedPage) => {
+            if (cachedPage) return cachedPage
+            // Si no hay nada cacheado, devolver una respuesta vacía
+            return new Response(
+              '<!DOCTYPE html><html><body style="font-family:sans-serif;text-align:center;padding:2rem"><h1>Sin conexión</h1><p>Esta página no está disponible offline. Conéctate a internet e inténtalo de nuevo.</p></body></html>',
+              { headers: { 'Content-Type': 'text/html' } }
+            )
+          })
+        }
+        // Para otros recursos, devolver undefined (dejar que el navegador maneje el error)
+        return undefined
+      }
+
+      if (cachedResponse) {
+        // Hay caché: devolverla inmediatamente.
+        // NO hacer background fetch si estamos offline (evita reintentos del navegador)
+        // que causan refreshes no deseados.
+        if (navigator.onLine) {
+          fetch(request)
+            .then(cacheResponse)
+            .catch(() => {})
+        }
+        return cachedResponse
+      }
+
+      // No hay caché: intentar red
+      return fetch(request)
+        .then(cacheResponse)
+        .catch(handleNetworkError)
+    })
+  )
+})
+
+// Mensajes desde la página
+self.addEventListener('message', (event) => {
+  if (event.data === 'SKIP_WAITING') {
+    self.skipWaiting()
+  }
+})

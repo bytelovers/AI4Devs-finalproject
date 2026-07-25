@@ -351,8 +351,8 @@ function ItemAssignmentRow({
 function ModeBadge({ mode }: { mode: AssignmentMode }) {
   const config = {
     single: { label: '1 persona', icon: User, color: 'text-primary' },
-    shared: { label: 'Compartido', icon: Users, color: 'text-blue-600' },
-    weighted: { label: 'Pesos', icon: Scale, color: 'text-purple-600' },
+    shared: { label: 'Compartido', icon: Users, color: 'text-accent-foreground' },
+    weighted: { label: 'Pesos', icon: Scale, color: 'text-secondary-foreground' },
   }
   const c = config[mode]
   const Icon = c.icon

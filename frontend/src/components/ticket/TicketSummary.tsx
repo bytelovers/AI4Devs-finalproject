@@ -1,5 +1,6 @@
 'use client'
 
+import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '@/lib/store'
 import {
   formatEUR,
@@ -42,7 +43,7 @@ export function TicketSummary({
   const people = useAppStore((s) => s.people)
   const deleteTicket = useAppStore((s) => s.deleteTicket)
   const updateTicket = useAppStore((s) => s.updateTicket)
-  const setView = useAppStore((s) => s.setView)
+  const navigate = useNavigate()
 
   const shares = computeShares(ticket)
   const cuadre = verifyCuadre(ticket)
@@ -54,12 +55,12 @@ export function TicketSummary({
   const handleClose = () => {
     updateTicket(ticket.id, { status: 'closed' })
     onClose?.()
-    setView('home')
+    navigate('/')
   }
 
   const handleDelete = () => {
     deleteTicket(ticket.id)
-    setView('home')
+    navigate('/')
   }
 
   const handleShare = async () => {

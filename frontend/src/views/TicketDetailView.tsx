@@ -1,28 +1,36 @@
 'use client'
 
 import { useAppStore } from '@/lib/store'
+import { useNavigate, useParams } from 'react-router-dom'
 import { TicketSummary } from '@/components/ticket/TicketSummary'
 import { TicketItemsEditor } from '@/components/ticket/TicketItemsEditor'
 import { AssignmentEditor } from '@/components/ticket/AssignmentEditor'
 import { PeopleGroupsManager } from '@/components/people/PeopleGroupsManager'
 import { PageHeader, EmptyState } from '@/components/ui/EmptyState'
 import { Button } from '@/components/ui/button'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Receipt, Edit3, ListChecks, Users, Pencil } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type DetailTab = 'summary' | 'items' | 'participants' | 'assign'
 
 export function TicketDetailView() {
-  const ticketId = useAppStore((s) => s.activeTicketId)
+  const { ticketId } = useParams<{ ticketId: string }>()
   const ticket = useAppStore((s) =>
     s.tickets.find((t) => t.id === ticketId)
   )
   const updateTicket = useAppStore((s) => s.updateTicket)
-  const setView = useAppStore((s) => s.setView)
+  const navigate = useNavigate()
   const [tab, setTab] = useState<DetailTab>('summary')
   const [editingTitle, setEditingTitle] = useState(false)
   const [titleDraft, setTitleDraft] = useState(ticket?.title ?? '')
+
+  // Sync titleDraft when navigating between different tickets
+  useEffect(() => {
+    if (!editingTitle) {
+      setTitleDraft(ticket?.title ?? '')
+    }
+  }, [ticket?.title, editingTitle])
 
   if (!ticket) {
     return (
@@ -31,7 +39,7 @@ export function TicketDetailView() {
           icon={Receipt}
           title="Ticket no encontrado"
           description="Puede que se haya eliminado."
-          action={{ label: 'Volver al inicio', onClick: () => setView('home') }}
+          action={{ label: 'Volver al inicio', onClick: () => navigate('/') }}
         />
       </div>
     )
@@ -54,7 +62,7 @@ export function TicketDetailView() {
       <PageHeader
         title={editingTitle ? '' : ticket.title || 'Ticket'}
         subtitle=""
-        back={() => setView('home')}
+        back={() => navigate('/')}
         action={
           !editingTitle ? (
             <Button
