@@ -21,6 +21,7 @@ const PRECACHE_URLS = [
   '/',
   '/manifest.webmanifest',
   '/icon.svg',
+  '/offline.html',
 ]
 
 // Instalación: precachear recursos básicos
@@ -160,15 +161,21 @@ self.addEventListener('fetch', (event) => {
 
       // Función para manejar el fallo de red
       const handleNetworkError = () => {
-        // Si es navegación y tenemos la página principal cacheada, usarla
+        // Para navegación: priorizar el shell SPA cacheado (offline-first).
+        // El SPA en "/" maneja TODAS las rutas vía React Router, así que
+        // offline.html solo se muestra si NUNCA se ha cargado la app.
         if (request.mode === 'navigate') {
-          return caches.match('/').then((cachedPage) => {
-            if (cachedPage) return cachedPage
-            // Si no hay nada cacheado, devolver una respuesta vacía
-            return new Response(
-              '<!DOCTYPE html><html><body style="font-family:sans-serif;text-align:center;padding:2rem"><h1>Sin conexión</h1><p>Esta página no está disponible offline. Conéctate a internet e inténtalo de nuevo.</p></body></html>',
-              { headers: { 'Content-Type': 'text/html' } }
-            )
+          return caches.match('/').then((cachedShell) => {
+            if (cachedShell) return cachedShell
+            // Sin SPA cacheado: última opción, página offline temática
+            return caches.match('/offline.html').then((offlinePage) => {
+              if (offlinePage) return offlinePage
+              // Emergencia: HTML inline
+              return new Response(
+                '<!DOCTYPE html><html><body style="font-family:sans-serif;text-align:center;padding:2rem"><h1>Sin conexión</h1><p>Esta página no está disponible offline. Conéctate a internet e inténtalo de nuevo.</p></body></html>',
+                { headers: { 'Content-Type': 'text/html' } }
+              )
+            })
           })
         }
         // Para otros recursos, devolver undefined (dejar que el navegador maneje el error)

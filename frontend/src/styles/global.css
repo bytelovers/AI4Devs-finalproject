@@ -64,7 +64,7 @@
   --destructive: oklch(0.577 0.245 27.325);
   /* Warning/Amber colors for light mode */
   --warning: oklch(0.55 0.15 80);
-  --warning-foreground: oklch(0.15 0.05 80);
+  --warning-foreground: oklch(0.15 0.10 80);
   --warning-bg: oklch(0.97 0.05 80);
   --warning-border: oklch(0.7 0.15 80);
   --border: oklch(0.92 0.005 240);
@@ -104,8 +104,8 @@
   --destructive: oklch(0.704 0.191 22.216);
   /* Warning/Amber colors for dark mode - brighter for contrast */
   --warning: oklch(0.85 0.15 80);
-  --warning-foreground: oklch(0.92 0.13 80);
-  --warning-bg: oklch(0.35 0.1 80);
+  --warning-foreground: oklch(0.95 0.10 80);
+  --warning-bg: oklch(0.25 0.10 80);
   --warning-border: oklch(0.6 0.15 80);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
