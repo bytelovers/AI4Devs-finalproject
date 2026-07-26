@@ -12,7 +12,13 @@
 
 import * as Comlink from 'comlink'
 import { scanTicket, enableFlorenceEngine, enableNerEngine } from '../lib/scan/orchestrator'
-import type { ScanProgress, ScanResult } from '../lib/scan/types'
+import type { ScanProgress, ScanResult, PreprocessedSection, SectionOcrPayload } from '../lib/scan/types'
+
+export interface ProcessSectionsOptions {
+  preferredEngine: 'tesseract' | 'tesseract-ner' | 'florence2' | 'server'
+  useMiniAgent?: boolean
+  verboseLogs?: boolean
+}
 
 const api = {
   /**
@@ -26,7 +32,7 @@ const api = {
   async processImage(
     imageSrc: string,
     options: {
-      preferredEngine: 'tesseract' | 'tesseract-ner' | 'florence2'
+      preferredEngine: 'tesseract' | 'tesseract-ner' | 'florence2' | 'server'
       useMiniAgent?: boolean
       verboseLogs?: boolean
     },
@@ -58,6 +64,69 @@ const api = {
         onProgress,
       }
     )
+  },
+
+  /**
+   * Batch process multiple receipt crop sections.
+   */
+  async processSections(
+    sections: PreprocessedSection[],
+    options: ProcessSectionsOptions,
+    onProgress?: (p: ScanProgress & { sectionId?: string }) => void
+  ): Promise<SectionOcrPayload[]> {
+    if (options.preferredEngine === 'florence2') {
+      enableFlorenceEngine()
+    }
+    if (options.preferredEngine !== 'tesseract') {
+      enableNerEngine()
+    }
+
+    const forceTesseract = options.preferredEngine === 'tesseract'
+    const forceTesseractNer = options.preferredEngine === 'tesseract-ner'
+
+    const results: SectionOcrPayload[] = []
+    const totalSections = sections.length
+
+    for (let i = 0; i < totalSections; i++) {
+      const sec = sections[i]
+      if (typeof onProgress === 'function') {
+        try {
+          await onProgress({
+            phase: 'running-inference',
+            message: `Escaneando sección ${i + 1} de ${totalSections}…`,
+            percent: Math.round(((i + 0.5) / totalSections) * 100),
+            sectionId: sec.sectionId,
+          })
+        } catch {
+          // Callback Proxy unmounted or detached
+        }
+      }
+
+      const scanRes = await scanTicket(
+        { imageDataUrl: sec.dataUrl },
+        {
+          forceTesseract,
+          forceTesseractNer,
+          useMiniAgent: options.useMiniAgent ?? false,
+          engineTimeoutMs: 120_000,
+          onProgress: typeof onProgress === 'function' ? (p) => {
+            try {
+              onProgress(p)
+            } catch {
+              // ignore proxy detachment
+            }
+          } : undefined,
+        }
+      )
+
+      results.push({
+        sectionId: sec.sectionId,
+        order: sec.order,
+        scanResult: scanRes,
+      })
+    }
+
+    return results
   },
 }
 

@@ -267,7 +267,8 @@ function ItemAssignmentRow({
 
   const totalWeight = item.assignments.reduce((s, a) => s + a.weight, 0)
   const isFullyAssigned =
-    item.assignments.length > 0 && Math.abs(totalWeight - 1) < 0.01
+    item.assignments.length > 0 &&
+    (item.mode === 'shared' || Math.abs(totalWeight - 1) < 0.01)
 
   return (
     <button
@@ -329,7 +330,7 @@ function ItemAssignmentRow({
                 </div>
               )
             })}
-            {!isFullyAssigned && (
+            {item.mode === 'weighted' && !isFullyAssigned && (
               <p className="text-xs text-warning-foreground font-medium pt-0.5">
                 ⚠ Pesos no suman 100% ({(totalWeight * 100).toFixed(0)}%)
               </p>
@@ -389,11 +390,12 @@ function ItemAssignmentSheet({
         assignments: first ? [{ personId: first.personId, weight: 1 }] : [],
       })
     } else if (mode === 'shared') {
-      // Todos los actualmente asignados pasan a peso 1 (se reparten a partes iguales)
+      // Todos los actualmente asignados se reparten a partes iguales (1/N)
       const current = item.assignments.length > 0 ? item.assignments : []
+      const equalWeight = current.length > 0 ? 1 / current.length : 1
       onChange({
         mode,
-        assignments: current.map((a) => ({ ...a, weight: 1 })),
+        assignments: current.map((a) => ({ ...a, weight: equalWeight })),
       })
     } else {
       onChange({ mode })
@@ -405,17 +407,31 @@ function ItemAssignmentSheet({
     if (exists) {
       // Quitar
       const next = item.assignments.filter((a) => a.personId !== personId)
-      onChange({ assignments: next })
+      if (item.mode === 'shared' && next.length > 0) {
+        const equal = 1 / next.length
+        onChange({ assignments: next.map((a) => ({ ...a, weight: equal })) })
+      } else {
+        onChange({ assignments: next })
+      }
     } else {
       // Añadir
       if (item.mode === 'single') {
         onChange({
           assignments: [{ personId, weight: 1 }],
         })
-      } else {
-        // shared / weighted: añadir con peso 1
+      } else if (item.mode === 'shared') {
+        // En modo shared, recalcular 1/N para todos
+        const newCount = item.assignments.length + 1
+        const equal = 1 / newCount
+        const updated = item.assignments.map((a) => ({ ...a, weight: equal }))
         onChange({
-          assignments: [...item.assignments, { personId, weight: 1 }],
+          assignments: [...updated, { personId, weight: equal }],
+        })
+      } else {
+        // En modo weighted: añadir con peso de lo que reste para 100% o 1/N
+        const remaining = Math.max(0.1, 1 - totalWeight)
+        onChange({
+          assignments: [...item.assignments, { personId, weight: remaining }],
         })
       }
     }
@@ -497,16 +513,29 @@ function ItemAssignmentSheet({
                       const next = item.assignments.filter(
                         (a) => !groupParticipants.includes(a.personId)
                       )
-                      onChange({ assignments: next })
+                      if (item.mode === 'shared' && next.length > 0) {
+                        const equal = 1 / next.length
+                        onChange({ assignments: next.map((a) => ({ ...a, weight: equal })) })
+                      } else {
+                        onChange({ assignments: next })
+                      }
                     } else {
                       // Añadir todos los del grupo que no estén ya
                       const existing = item.assignments.map((a) => a.personId)
-                      const toAdd = groupParticipants
-                        .filter((pid) => !existing.includes(pid))
-                        .map((pid) => ({ personId: pid, weight: 1 }))
-                      onChange({
-                        assignments: [...item.assignments, ...toAdd],
-                      })
+                      const newPids = Array.from(new Set([...existing, ...groupParticipants]))
+                      if (item.mode === 'shared') {
+                        const equal = 1 / newPids.length
+                        onChange({
+                          assignments: newPids.map((pid) => ({ personId: pid, weight: equal })),
+                        })
+                      } else {
+                        const toAdd = groupParticipants
+                          .filter((pid) => !existing.includes(pid))
+                          .map((pid) => ({ personId: pid, weight: 1 }))
+                        onChange({
+                          assignments: [...item.assignments, ...toAdd],
+                        })
+                      }
                     }
                   }}
                   className={cn(
@@ -580,7 +609,7 @@ function ItemAssignmentSheet({
                     {item.mode === 'weighted' && (
                       <div className="flex items-center gap-1">
                         <button
-                          onClick={() => setWeight(p.id, (assign?.weight ?? 1) - 0.5)}
+                          onClick={() => setWeight(p.id, Math.max(0, (assign?.weight ?? 1) - 0.05))}
                           className="h-6 w-6 rounded-full bg-muted flex items-center justify-center hover:bg-muted-foreground/20"
                         >
                           <Minus className="h-3 w-3" />
@@ -588,16 +617,24 @@ function ItemAssignmentSheet({
                         <Input
                           type="number"
                           inputMode="decimal"
-                          step="0.5"
+                          step="5"
                           min="0"
-                          value={assign?.weight ?? 1}
-                          onChange={(e) =>
-                            setWeight(p.id, parseFloat(e.target.value) || 0)
+                          max="100"
+                          value={
+                            assign?.weight !== undefined
+                              ? Math.round(assign.weight * 100)
+                              : 100
                           }
-                          className="w-14 h-7 text-center text-sm"
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value) || 0
+                            // El usuario introduce un porcentaje (0-100), se guarda como fracción (0-1)
+                            const weightFraction = val / 100
+                            setWeight(p.id, weightFraction)
+                          }}
+                          className="w-16 h-7 text-center text-sm"
                         />
                         <button
-                          onClick={() => setWeight(p.id, (assign?.weight ?? 1) + 0.5)}
+                          onClick={() => setWeight(p.id, (assign?.weight ?? 1) + 0.05)}
                           className="h-6 w-6 rounded-full bg-muted flex items-center justify-center hover:bg-muted-foreground/20"
                         >
                           <Plus className="h-3 w-3" />

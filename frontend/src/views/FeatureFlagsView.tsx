@@ -4,6 +4,7 @@ import { PageHeader } from '@/components/ui/EmptyState'
 import { Card } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
 import { ScanEngineSelector } from '@/components/scan/ScanEngineSelector'
+import { ScanOnboarding } from '@/components/onboarding/ScanOnboarding'
 import {
   Eye,
   Terminal,
@@ -12,12 +13,19 @@ import {
   Info,
   Zap,
 } from 'lucide-react'
+import { useState } from 'react'
 import { toast } from 'sonner'
 
 export function FeatureFlagsView() {
   const featureFlags = useAppStore((s) => s.featureFlags)
   const updateFeatureFlags = useAppStore((s) => s.updateFeatureFlags)
   const navigate = useNavigate()
+
+  const [showScanOnboarding, setShowScanOnboarding] = useState(false)
+
+  const handleDownloadModel = () => {
+    setShowScanOnboarding(true)
+  }
 
   const flags = [
     {
@@ -62,7 +70,7 @@ export function FeatureFlagsView() {
         </h2>
       </div>
 
-      <ScanEngineSelector technical detailed />
+      <ScanEngineSelector detailed onDownloadModel={handleDownloadModel} />
 
       {/* === Sección: Feature flags === */}
       <div className="flex items-center gap-1.5 mb-2 mt-6 px-1">
@@ -124,6 +132,11 @@ export function FeatureFlagsView() {
           )
         })}
       </div>
+
+      <ScanOnboarding
+        open={showScanOnboarding}
+        onClose={() => setShowScanOnboarding(false)}
+      />
 
       {/* Footer */}
       <div className="mt-6 flex items-center gap-2 text-xs text-muted-foreground/60">

@@ -1,3 +1,5 @@
+import type { QualityAssessmentSummary, ResolutionPreset } from './scan/types'
+
 // Tipos centrales de la app SplitEat
 
 export type ID = string
@@ -67,6 +69,74 @@ export type ExtraDistributionMode = 'proportional' | 'equal'
 /** Estado del ticket. */
 export type TicketStatus = 'draft' | 'balanced' | 'closed'
 
+/**
+ * EXIF Metadata mapping result.
+ */
+export interface RawExifResult {
+  GPSLatitude?: number[];
+  GPSLongitude?: number[];
+  GPSLatitudeRef?: string;
+  GPSLongitudeRef?: string;
+  DateTimeOriginal?: string;
+  Make?: string;
+  Model?: string;
+  Orientation?: number;
+}
+
+/**
+ * Normalized EXIF namespace for UI consumption.
+ * Geometry/location are simplified to decision types.
+ */
+export interface ExifNamespace {
+  gps: { latitude: number; longitude: number } | null;
+  timestamp: string | null;
+  device: { make?: string; model?: string } | null;
+  orientation: number | null;
+}
+
+/**
+ * Metadata envelope for ticket-level EXIF.
+ */
+export interface TicketMetadata {
+  exif?: ExifNamespace;
+}
+
+/**
+ * Metadata del procesado OCR/IA de un ticket.
+ *
+ * Se persiste junto al `Ticket` para:
+ * - Conservar el texto crudo tras un refresh en el wizard.
+ * - Alimentar la pantalla de revisión OCR (gated por
+ * `featureFlags.showOcrReview`).
+ * - Permitir tracking/auditoría del procesado de cada ticket.
+ *
+ * Solo se rellena cuando el ticket ha sido escaneado; los tickets de
+ * entrada manual lo dejarán `undefined`.
+ */
+export interface ScanMetadata {
+  /** Motor que generó el resultado (mirrors `ScanResult.engine`). */
+  engine: 'florence2' | 'tesseract' | 'tesseract-ner' | 'server'
+  /** Texto crudo extraído por el OCR, antes de aplicar NER/parser. */
+  rawText: string
+  /** Confianza estimada 0-1 (si el motor la reporta). */
+  confidence?: number
+  /** Imagen preprocesada (data URL) por el pipeline on-device. */
+  preprocessedImageDataUrl?: string
+  /** Fecha de procesado (ISO). */
+  processedAt: string
+  /** Quality assessment metrics summary (Hybrid Persistence) */
+  qualitySummary?: QualityAssessmentSummary
+  /** Number of crop sections processed */
+  sectionCount?: number
+  /** User applied adjustment configuration */
+  adjustmentsSummary?: {
+    brightness: number
+    contrast: number
+    binarizationUsed: boolean
+    resolutionPreset: ResolutionPreset
+  }
+}
+
 /** Ticket completo. */
 export interface Ticket {
   id: ID
@@ -106,6 +176,17 @@ export interface Ticket {
   status: TicketStatus
   createdAt: string
   updatedAt: string
+  /**
+   * EXIF metadata (GPS and device info).
+   * Incorporated for SDD exif-metadata-mapping feature.
+   */
+  metadata?: TicketMetadata
+  /**
+   * Metadata del procesado por OCR/IA.
+   * Persistido para auditoría y como puente entre el OCR worker y la
+   * pantalla de revisión OCR (gated por `featureFlags.showOcrReview`).
+   */
+  scan?: ScanMetadata
 }
 
 /** Estado global persistido en localStorage. */
@@ -129,7 +210,7 @@ export interface AppData {
   }
   /** Feature flags de desarrollador. */
   featureFlags: {
-    /** Mostrar pantalla de revisión OCR antes del NER. Default: true. */
+    /** Mostrar pantalla de revisión OCR antes del NER. Default: false. */
     showOcrReview: boolean
     /** Mostrar logs detallados en consola. Default: false. */
     verboseLogs: boolean
