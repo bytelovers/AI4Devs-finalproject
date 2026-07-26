@@ -7,13 +7,15 @@ import { useAppStore } from '@/lib/store'
 import { genId } from '@/lib/calc'
 import { PageHeader } from '@/components/ui/EmptyState'
 import { CameraCapture } from '@/components/camera/CameraCapture'
+import { TicketImageAdjuster } from '@/components/camera/TicketImageAdjuster'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { preprocessReceiptImage } from '@/lib/scan'
+import { preprocessMultiSectionReceipt } from '@/lib/scan/preprocessor'
+import { mergeMultiSectionOcrResults } from '@/lib/scan/multiSectionMerger'
 import type { OCRWorkerType } from '@/workers/ocr.worker'
-import type { ScanResult } from '@/lib/scan/types'
+import type { ImageAdjustmentOptions, SectionOcrPayload } from '@/lib/scan/types'
+import type { ScanMetadata } from '@/lib/types'
 import { Loader2, AlertCircle, RefreshCw, Upload, Sparkles, CheckCircle } from 'lucide-react'
-import { toast } from 'sonner'
 
 // Singleton Comlink worker proxy using Vite's ?worker import
 import OCRWorker from '../workers/ocr.worker.ts?worker'
@@ -27,7 +29,7 @@ function getWorker(): Comlink.Remote<OCRWorkerType> {
   return workerInstance
 }
 
-type CapturePhase = 'capture' | 'preview' | 'scanning' | 'complete' | 'error'
+export type CapturePhase = 'capture' | 'adjust' | 'scanning' | 'complete' | 'error'
 
 export function NewTicketCaptureView() {
   const draftTicketId = useAppStore((s) => s.draftTicketId)
@@ -38,6 +40,9 @@ export function NewTicketCaptureView() {
   const recalcTicket = useAppStore((s) => s.recalcTicket)
   const addTicketItem = useAppStore((s) => s.addTicketItem)
   const preferredEngine = useAppStore((s) => s.settings.preferredEngine)
+  const showOcrReview = useAppStore(
+    (s) => s.featureFlags.showOcrReview
+  )
   const navigate = useNavigate()
 
   const [phase, setPhase] = useState<CapturePhase>('capture')
@@ -67,73 +72,127 @@ export function NewTicketCaptureView() {
     navigate('/')
   }, [draft, deleteTicket, clearDraftTicketId, navigate])
 
-  const handleCapture = useCallback(
-    async (imageDataUrl: string) => {
-      setCapturedImage(imageDataUrl)
+  // Initial Photo Capture -> Transitions to 'adjust' phase
+  const handlePhotoCaptured = useCallback((imageDataUrl: string) => {
+    setCapturedImage(imageDataUrl)
+    setPhase('adjust')
+  }, [])
+
+  // Confirm adjustments & initiate OCR scanning pipeline
+  const handleConfirmAdjust = useCallback(
+    async (imageDataUrl: string, options: ImageAdjustmentOptions) => {
       setPhase('scanning')
       setScanProgress(0)
-      setScanMessage('Preparando imagen…')
+      setScanMessage('Preprocesando imagen y recortes…')
       setScanError(null)
       abortRef.current = false
 
       try {
-        // Step 1: Save image to draft immediately
+        // Step 1: Save captured image to draft
         if (draftTicketId) {
           updateTicket(draftTicketId, { image: imageDataUrl })
         }
 
-        // Step 2: Preprocess for OCR
-        const processed = await preprocessReceiptImage(imageDataUrl, {
-          maxWidth: 1280,
-          equalizeHistogram: true,
-          contrast: 1.2,
-        })
+        // Step 2: Multi-section canvas preprocessing pipeline
+        const preprocessResult = await preprocessMultiSectionReceipt(imageDataUrl, options)
 
         if (abortRef.current) return
-        setScanProgress(15)
-        setScanMessage('Ejecutando OCR…')
+        setScanProgress(20)
+        setScanMessage('Iniciando OCR por secciones…')
 
-        // Step 3: Process via OCR worker
+        // Step 3: Off-main-thread batch section processing via Comlink Worker
         const worker = getWorker()
-        const result: ScanResult = await worker.processImage(
-          processed,
-          {
-            preferredEngine: preferredEngine as
-              | 'tesseract'
-              | 'tesseract-ner'
-              | 'florence2'
-              | 'server',
-            useMiniAgent: true,
-            verboseLogs: false,
-          },
-          Comlink.proxy((p) => {
-            if (abortRef.current) return
-            setScanMessage(p.message)
-            if (p.percent !== undefined) {
-              setScanProgress(Math.max(15, p.percent))
-            }
-          })
-        )
+        let payloads: SectionOcrPayload[] = []
+
+        if (typeof worker.processSections === 'function') {
+          payloads = await worker.processSections(
+            preprocessResult.sections,
+            {
+              preferredEngine: preferredEngine as any,
+              useMiniAgent: true,
+              verboseLogs: false,
+            },
+            Comlink.proxy((p: any) => {
+              if (abortRef.current) return
+              setScanMessage(p.message || 'Escaneando ticket…')
+              if (p.percent !== undefined) {
+                setScanProgress(Math.max(20, p.percent))
+              }
+            })
+          )
+        } else {
+          // Fallback single-image worker processing
+          const singleRes = await worker.processImage(
+            preprocessResult.sections[0]?.dataUrl || imageDataUrl,
+            {
+              preferredEngine: preferredEngine as any,
+              useMiniAgent: true,
+              verboseLogs: false,
+            },
+            Comlink.proxy((p: any) => {
+              if (abortRef.current) return
+              setScanMessage(p.message || 'Escaneando ticket…')
+              if (p.percent !== undefined) {
+                setScanProgress(Math.max(20, p.percent))
+              }
+            })
+          )
+          payloads = [
+            {
+              sectionId: 'sec_1',
+              order: 1,
+              scanResult: singleRes,
+            },
+          ]
+        }
 
         if (abortRef.current) return
+
+        setScanProgress(90)
+        setScanMessage('Sintetizando resultados de secciones…')
+
+        // Step 4: Multi-section synthesis & deduplication engine
+        const mergedResult = mergeMultiSectionOcrResults(
+          payloads,
+          preprocessResult.qualitySummary
+        )
 
         setScanProgress(100)
         setScanMessage('Escaneo completado')
 
-        // Step 4: Update draft ticket with scanned items
+        // Step 5: Persist merged results & hybrid quality metadata to store
         if (draftTicketId) {
-          const itemSum = (result.items || []).reduce(
+          const itemSum = (mergedResult.items || []).reduce(
             (sum, item) => sum + item.unitPrice * item.quantity,
             0
           )
 
+          const scanMetadata: ScanMetadata = {
+            engine: (payloads[0]?.scanResult?.engine as any) || preferredEngine || 'tesseract-ner',
+            rawText: mergedResult.rawTextCombined ?? '',
+            confidence: mergedResult.confidence,
+            preprocessedImageDataUrl: preprocessResult.sections[0]?.dataUrl,
+            processedAt: new Date().toISOString(),
+            qualitySummary: mergedResult.qualitySummary,
+            sectionCount: mergedResult.sectionCount,
+            adjustmentsSummary: {
+              brightness: options.brightness,
+              contrast: options.contrast,
+              binarizationUsed: options.binarization,
+              resolutionPreset: options.resolution.preset,
+            },
+          }
+
+          const defaultTaxRate = useAppStore.getState().settings.defaultTaxRate
+
           updateTicket(draftTicketId, {
-            title: result.merchant
-              ? `Ticket - ${result.merchant}`
+            title: mergedResult.merchant
+              ? `Ticket - ${mergedResult.merchant}`
               : 'Ticket escaneado',
-            merchant: result.merchant,
+            merchant: mergedResult.merchant,
+            date: mergedResult.date || new Date().toISOString(),
             image: imageDataUrl,
-            items: (result.items || []).map((item) => ({
+            items: (mergedResult.items || []).map((item) => ({
               id: genId(),
               name: item.name,
               quantity: item.quantity,
@@ -141,12 +200,12 @@ export function NewTicketCaptureView() {
               mode: 'single' as const,
               assignments: [],
             })),
-            subtotal: result.subtotal ?? itemSum,
-            taxRate: result.taxRate,
-            taxAmount: result.taxAmount,
+            subtotal: mergedResult.subtotal ?? itemSum,
+            taxRate: mergedResult.taxRate ?? defaultTaxRate,
+            taxAmount: mergedResult.taxAmount,
+            scan: scanMetadata,
           })
 
-          // Recalculate subtotal/tax/tip from fresh items
           recalcTicket(draftTicketId)
         }
 
@@ -163,6 +222,11 @@ export function NewTicketCaptureView() {
     [draftTicketId, updateTicket, recalcTicket, preferredEngine]
   )
 
+  const handleRetakeAdjust = useCallback(() => {
+    setCapturedImage(null)
+    setPhase('capture')
+  }, [])
+
   const handleManualEntry = () => {
     if (draftTicketId) {
       updateTicket(draftTicketId, { title: 'Ticket manual' })
@@ -174,19 +238,32 @@ export function NewTicketCaptureView() {
 
   const handleRetryScan = useCallback(() => {
     if (capturedImage) {
-      setPhase('scanning')
+      setPhase('adjust')
       setScanError(null)
       setScanProgress(0)
-      setScanMessage('Preparando imagen…')
-      handleCapture(capturedImage)
+    } else {
+      setPhase('capture')
     }
-  }, [capturedImage, handleCapture])
+  }, [capturedImage])
+
 
   if (!draft) {
     return (
       <div className="px-4 py-12 text-center">
         <p className="text-muted-foreground">Iniciando wizard…</p>
       </div>
+    )
+  }
+
+  // ── Adjust Phase ──
+  if (phase === 'adjust' && capturedImage) {
+    return (
+      <TicketImageAdjuster
+        imageDataUrl={capturedImage}
+        onConfirm={handleConfirmAdjust}
+        onCancel={handleRetakeAdjust}
+        onRetake={handleRetakeAdjust}
+      />
     )
   }
 
@@ -221,7 +298,11 @@ export function NewTicketCaptureView() {
             Los items se han extraído automáticamente. Puedes revisarlos y ajustarlos.
           </p>
           <div className="flex gap-2 mt-4">
-            <Button onClick={() => navigate('/tickets/new/review')}>
+            <Button
+              onClick={() =>
+                navigate('/tickets/new/review')
+              }
+            >
               Revisar ticket
             </Button>
           </div>
@@ -286,7 +367,7 @@ export function NewTicketCaptureView() {
       />
 
       <CameraCapture
-        onCapture={handleCapture}
+        onCapture={handlePhotoCaptured}
         onCancel={handleBack}
       />
 

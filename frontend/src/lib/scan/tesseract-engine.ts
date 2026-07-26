@@ -124,6 +124,48 @@ async function resizeAndEnhance(
   imageDataUrl: string,
   maxWidth: number
 ): Promise<string> {
+  // En contexto de Web Worker, HTMLImageElement (Image) o HTMLCanvasElement no están disponibles en el hilo principal.
+  if (typeof window === 'undefined' || typeof Image === 'undefined') {
+    try {
+      if (typeof fetch !== 'undefined' && typeof createImageBitmap !== 'undefined' && typeof OffscreenCanvas !== 'undefined') {
+        const res = await fetch(imageDataUrl)
+        const blob = await res.blob()
+        const imgBitmap = await createImageBitmap(blob)
+        const scale = Math.min(1, maxWidth / imgBitmap.width)
+        const w = Math.round(imgBitmap.width * scale)
+        const h = Math.round(imgBitmap.height * scale)
+
+        const canvas = new OffscreenCanvas(w, h)
+        const ctx = canvas.getContext('2d', { willReadFrequently: true }) as OffscreenCanvasRenderingContext2D | null
+        if (!ctx) return imageDataUrl
+
+        ctx.imageSmoothingEnabled = true
+        ctx.imageSmoothingQuality = 'high'
+        ctx.drawImage(imgBitmap, 0, 0, w, h)
+
+        const imageData = ctx.getImageData(0, 0, w, h)
+        const data = imageData.data
+        const contrast = 1.1
+        const intercept = 128 * (1 - contrast)
+        for (let i = 0; i < data.length; i += 4) {
+          data[i] = Math.max(0, Math.min(255, contrast * data[i] + intercept))
+          data[i + 1] = Math.max(0, Math.min(255, contrast * data[i + 1] + intercept))
+          data[i + 2] = Math.max(0, Math.min(255, contrast * data[i + 2] + intercept))
+        }
+        ctx.putImageData(imageData, 0, 0)
+        const convertedBlob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.92 })
+        return new Promise((resolve) => {
+          const reader = new FileReader()
+          reader.onloadend = () => resolve(reader.result as string)
+          reader.readAsDataURL(convertedBlob)
+        })
+      }
+    } catch {
+      return imageDataUrl
+    }
+    return imageDataUrl
+  }
+
   return new Promise((resolve, reject) => {
     const img = new Image()
     img.crossOrigin = 'anonymous'
@@ -143,7 +185,6 @@ async function resizeAndEnhance(
       ctx.imageSmoothingQuality = 'high'
       ctx.drawImage(img, 0, 0, w, h)
 
-      // Aumento de contraste suave (1.1x) preservando color
       const imageData = ctx.getImageData(0, 0, w, h)
       const data = imageData.data
       const contrast = 1.1
