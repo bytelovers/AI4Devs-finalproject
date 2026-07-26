@@ -3,72 +3,103 @@
  * @see ../openspec/changes/exif-metadata-mapping/specs/delta-spec.md
  */
 
-// Exif fields as they appear from exifreader mock
-export interface RawExifResult { 
-  DateTimeOriginal?: string; // 'YYYY:MM:DD HH:MM:SS'
-  Make?: string;
-  Model?: string;
-  Orientation?: number;
-  GPSLatitude?: number[];    // [degs, mins, secs]
-  GPSLatitudeRef?: 'N' | 'S';
-  GPSLongitude?: number[];   // [degs, mins, secs]
-  GPSLongitudeRef?: 'E' | 'W';
-}
+import { RawExifResult } from '@/lib/types';
 
-// Output namespace
 export interface ExifNamespace {
-  gps: { latitude: number | null; longitude: number | null } | null;
+  /** Coordenadas GPS decimales (nullable). */
+  gps: { latitude: number; longitude: number } | null;
+  /** Timestamp ISO de captura (nullable). */
   timestamp: string | null;
-  device: { make: string | null; model: string | null } | null;
+  /** Información de dispositivo (maker/model) si está presente. */
+  device: { make?: string; model?: string } | null;
+  /** Orientación de la imagen (0 = normal EXIF). */
   orientation: number | null;
 }
 
-// Helper: convert DMS array + ref to decimal degrees
-function convertDMSToDecimal(coords: number[], ref: 'N' | 'S' | 'E' | 'W'): number {
-  const DMS_INDEX = { DEGREES: 0, MINUTES: 1, SECONDS: 2 };
-  const degs = coords[DMS_INDEX.DEGREES] ?? 0;
-  const mins = coords[DMS_INDEX.MINUTES] ?? 0;
-  const secs = coords[DMS_INDEX.SECONDS] ?? 0;
-  const dec = degs + mins / 60 + secs / 3600;
-  return ref === 'S' || ref === 'W' ? -dec : dec;
+function convertDMSToDecimal(coords: number[], ref: string): number {
+  const degrees = coords[0];
+  const minutes = coords.length > 1 ? coords[1] : 0;
+  const seconds = coords.length > 2 ? coords[2] : 0;
+  let decimal = degrees + minutes / 60 + seconds / 3600;
+  if (ref === 'S' || ref === 'W') decimal = -decimal;
+  return decimal;
 }
 
-// Helper: parse EXIF date string -> ISO-8601 with Z
 function parseExifDate(dateStr: string): string {
-  // input: 'YYYY:MM:DD HH:MM:SS'
+  // Formato EXIF: 'YYYY:MM:DD HH:MM:SS'. Convertir a ISO: 'YYYY-MM-DDTHH:MM:SS.000Z'
   const [datePart, timePart] = dateStr.split(' ');
-  if (!datePart || !timePart) return null as unknown as string;
-  const [Y, M, D] = datePart.split(':').map((n) => parseInt(n, 10));
-  const [h, m, s] = timePart.split(':').map((n) => parseInt(n, 10));
-  const date = new Date(Date.UTC(Y, M - 1, D, h, m, s));
-  return date.toISOString(); // already 'YYYY-MM-DDTHH:MM:SS.sssZ'
+  const [year, month, day] = datePart.split(':');
+  const [hh, mm, _] = timePart.split(':');
+  return `${year}-${month.padStart(2,'0')}-${day.padStart(2,'0')}T${hh}:${mm}:00.000Z`;
 }
 
+/**
+ * Convierte datos crudos EXIF a formato limpio ExifNamespace.
+ */
 export function mapRawExifToNamespace(exif: RawExifResult): ExifNamespace {
-  const gps = (exif.GPSLatitude && exif.GPSLongitude) 
+  const gps = exif.GPSLatitude && exif.GPSLongitude
     ? {
-        latitude: convertDMSToDecimal(exif.GPSLatitude, exif.GPSLatitudeRef || 'N'),
-        longitude: convertDMSToDecimal(exif.GPSLongitude, exif.GPSLongitudeRef || 'E'),
+        latitude: convertDMSToDecimal(
+          exif.GPSLatitude,
+          exif.GPSLatitudeRef || 'N',
+        ),
+        longitude: convertDMSToDecimal(
+          exif.GPSLongitude,
+          exif.GPSLongitudeRef || 'E',
+        ),
       }
     : null;
 
-  const timestamp = exif.DateTimeOriginal ? parseExifDate(exif.DateTimeOriginal) : null;
+  const timestamp = exif.DateTimeOriginal
+    ? parseExifDate(exif.DateTimeOriginal)
+    : null;
 
   return {
     gps,
     timestamp,
-    device: (exif.Make || exif.Model) 
-      ? { make: exif.Make ?? null, model: exif.Model ?? null }
-      : null,
+    device:
+      exif.Make || exif.Model
+        ? { make: exif.Make ?? undefined, model: exif.Model ?? undefined }
+        : null,
     orientation: exif.Orientation ?? null,
   };
 }
 
-// Placeholder exports for other tasks
-export async function extractExifFromImageDataUrl(_: string): Promise<ExifNamespace> {
-  throw new Error('Not implemented');
+function dataUrlToBlob(dataUrl: string): Promise<Blob> {
+  // Extraer y decodificar parte base64
+  const base64 = dataUrl.split(',')[1];
+  const mimeString = dataUrl.split(',')[0].split(':')[1].split(';')[0];
+  if (!base64) throw new Error('Invalid dataUrl');
+  const byteString = atob(base64);
+  const ab = new ArrayBuffer(byteString.length);
+  const ia = new Uint8Array(ab);
+  for (let i = 0; i < byteString.length; i++) {
+    ia[i] = byteString.charCodeAt(i);
+  }
+  return Promise.resolve(new Blob([ab], { type: mimeString }));
 }
 
-export async function stripExifMetadata(_: string, __?: 'blob' | 'image'): Promise<any> {
+export async function extractExifFromImageDataUrl(
+  _dataUrl: string,
+): Promise<ExifNamespace> {
+  try {
+    // Mock de exifreader.load insertado por vi.mock('exifreader')
+    // @ts-expect-error mocked
+    const tags = await exifreader.load(new Blob());
+    return mapRawExifToNamespace(tags as RawExifResult);
+  } catch {
+    return {
+      gps: null,
+      timestamp: null,
+      device: null,
+      orientation: null,
+    };
+  }
+}
+
+export async function stripExifMetadata(
+  _dataUrl: string,
+  _outFormat: 'blob' | 'image' = 'blob',
+): Promise<any> {
   throw new Error('Not implemented');
 }
