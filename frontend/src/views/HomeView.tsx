@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '@/lib/store'
 import { formatEUR, formatDate, computeShares, calcTicketTotal } from '@/lib/calc'
 import { EmptyState, PageHeader } from '@/components/ui/EmptyState'
@@ -10,10 +11,9 @@ import { Button } from '@/components/ui/button'
 import { Plus, Receipt, ScanLine, TrendingUp, ChevronRight, CheckCircle2 } from 'lucide-react'
 
 export function HomeView() {
+  const navigate = useNavigate()
   const tickets = useAppStore((s) => s.tickets)
   const people = useAppStore((s) => s.people)
-  const setView = useAppStore((s) => s.setView)
-  const openTicket = useAppStore((s) => s.openTicket)
   const setStartManual = (v: boolean) => useAppStore.setState({ _startManual: v })
   const [showAll, setShowAll] = useState(false)
 
@@ -49,7 +49,7 @@ export function HomeView() {
               variant="secondary"
               onClick={() => {
                 setStartManual(false)
-                setView('new-ticket')
+                navigate('/tickets/new')
               }}
               className="bg-white text-primary hover:bg-white/90 font-semibold"
             >
@@ -61,7 +61,7 @@ export function HomeView() {
               variant="outline"
               onClick={() => {
                 setStartManual(true)
-                setView('new-ticket')
+                navigate('/tickets/new')
               }}
               className="bg-white/10 border-white/30 text-white hover:bg-white/20 backdrop-blur-sm"
             >
@@ -157,7 +157,7 @@ export function HomeView() {
             return (
               <button
                 key={ticket.id}
-                onClick={() => openTicket(ticket.id)}
+                onClick={() => navigate(`/tickets/${ticket.id}`)}
                 className="w-full text-left"
               >
                 <Card className="p-4 hover:bg-accent/40 transition-colors active:scale-[0.99]">

@@ -200,19 +200,47 @@ export function parseReceiptText(text: string): ParsedReceipt {
     })
     if (validPrices.length === 0) continue
 
-    // Usar el último precio válido como precio del item
-    const priceMatch = validPrices[validPrices.length - 1]
-    const priceStr = priceMatch[1]
-    const lineTotal = parseSpanishAmount(priceStr)
-
-    // Detectar cantidad al inicio ANTES de limpiar (ej: "2x Cerveza", "2 x Cerveza")
+    let lineTotal: number
+    let unitPrice: number
     let quantity = 1
-    const qtyMatch = line.match(/^(\d+)\s*[xX]?\s+/)
-    if (qtyMatch) {
-      const parsedQty = parseInt(qtyMatch[1])
-      if (parsedQty >= 1 && parsedQty <= 50) {
-        quantity = parsedQty
+
+    // Si la línea tiene 3 o más valores numéricos/precios (ej: "ENTRECOTTE 4,00 22,80 45,20" o "CERVEZA 500 2,00 5,68 11,30")
+    if (validPrices.length >= 3) {
+      // El último número con decimales es el Importe Total
+      lineTotal = parseSpanishAmount(validPrices[validPrices.length - 1][1])
+      // El penúltimo es el Precio Unitario
+      unitPrice = parseSpanishAmount(validPrices[validPrices.length - 2][1])
+      // El antepenúltimo representa la Cantidad (ej: 4,00 o 2,00)
+      const qtyVal = parseSpanishAmount(validPrices[validPrices.length - 3][1])
+      if (qtyVal > 0 && qtyVal <= 500) {
+        quantity = Math.round(qtyVal)
       }
+    } else if (validPrices.length === 2) {
+      // Si hay 2 precios (ej: "2,00 11,30" -> cantidad o unitPrice + total)
+      const p1 = parseSpanishAmount(validPrices[0][1])
+      const p2 = parseSpanishAmount(validPrices[1][1])
+      lineTotal = p2
+      if (p1 > 0 && Math.abs(p1 * Math.round(p1) - p2) < 0.05) {
+        // p1 es la cantidad entera
+        quantity = Math.round(p1)
+        unitPrice = p2 / quantity
+      } else {
+        unitPrice = p1
+        quantity = p1 > 0 ? Math.round(p2 / p1) || 1 : 1
+      }
+    } else {
+      // Un único precio (Importe Total)
+      lineTotal = parseSpanishAmount(validPrices[0][1])
+      
+      // Detectar cantidad al inicio ANTES de limpiar (ej: "2x Cerveza", "2 x Cerveza")
+      const qtyMatch = line.match(/^(\d+)\s*[xX]?\s+/)
+      if (qtyMatch) {
+        const parsedQty = parseInt(qtyMatch[1])
+        if (parsedQty >= 1 && parsedQty <= 50) {
+          quantity = parsedQty
+        }
+      }
+      unitPrice = lineTotal / quantity
     }
 
     // Limpiar nombre: quitar TODOS los precios, símbolos y ruido del OCR
@@ -240,7 +268,6 @@ export function parseReceiptText(text: string): ParsedReceipt {
     // Saltar líneas que son claramente totales/IVA/descuentos
     if (/^(total|subtotal|sub[\s-]?total|subtolal|base|iva|impuesto|descuento|dto|propina|tal\b)/i.test(namePart)) continue
 
-    const unitPrice = lineTotal / quantity
     items.push({ name: namePart, quantity, unitPrice: round2(unitPrice) })
   }
 
