@@ -173,8 +173,9 @@ async function scanWithMiniAgent(
   // 3. Si confianza baja, usar fallback
   const modelToUse = intent.confidence < 0.5 ? fallbackModel : intent.recommendedModel
 
-  // 4. Ejecutar NER con el modelo seleccionado
-  return await scanWithTesseractNer(imageDataUrl, onProgress, modelToUse)
+  // 4. Ejecutar NER con el modelo seleccionado, reutilizando el Tesseract ya
+  //    ejecutado en el paso 1 para no hacer doble OCR sobre el mismo recorte.
+  return await scanWithTesseractNer(imageDataUrl, onProgress, modelToUse, tesseractResult)
 }
 
 async function runEngineWithTimeout(

@@ -23,14 +23,19 @@ import {
 /**
  * Ejecuta Tesseract + NER sobre la imagen.
  * El parámetro nerModelType decide qué modelo NER cargar.
+ *
+ * `precomputedTesseract` permite reutilizar un resultado de Tesseract ya
+ * calculado (p.ej. por el mini-agente) y evitar ejecutar el OCR dos veces
+ * sobre el mismo recorte.
  */
 export async function scanWithTesseractNer(
   imageDataUrl: string,
   onProgress?: ProgressCallback,
-  nerModelType: NerModelType = 'general'
+  nerModelType: NerModelType = 'general',
+  precomputedTesseract?: ScanResult
 ): Promise<ScanResult> {
-  // 1. Ejecutar Tesseract para extraer texto crudo
-  const tesseractResult = await scanWithTesseract(imageDataUrl, onProgress)
+  // 1. Ejecutar Tesseract para extraer texto crudo (o reutilizar el del mini-agente)
+  const tesseractResult = precomputedTesseract ?? (await scanWithTesseract(imageDataUrl, onProgress))
   const rawText = tesseractResult.rawText ?? ''
 
   if (!rawText.trim()) {
