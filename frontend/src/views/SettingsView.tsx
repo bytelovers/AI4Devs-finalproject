@@ -171,9 +171,7 @@ export function SettingsView() {
           <Button
             variant="outline"
             onClick={() => {
-              const blob = new Blob([JSON.stringify(exportData(), null, 2)], {
-                type: 'application/json',
-              })
+              const blob = new Blob([exportData()], { type: 'application/json' })
               const url = URL.createObjectURL(blob)
               const a = document.createElement('a')
               a.href = url
@@ -246,13 +244,13 @@ export function SettingsView() {
               </Button>
               <Button
                 onClick={() => {
-                  try {
-                    importData(JSON.parse(importText))
+                  const ok = importData(importText)
+                  if (ok) {
                     toast.success('Datos importados correctamente')
                     setShowImport(false)
                     setImportText('')
-                  } catch (e) {
-                    toast.error('JSON inválido: ' + (e as Error).message)
+                  } else {
+                    toast.error('JSON inválido: no se reconoce un backup de Cuadra')
                   }
                 }}
               >

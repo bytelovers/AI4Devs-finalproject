@@ -479,3 +479,83 @@ describe('persistence — merge migration', () => {
     expect(useAppStore.getState().featureFlags.showOcrReview).toBe(true)
   })
 })
+
+// ---------------------------------------------------------------------------
+// Backup export / import
+// ---------------------------------------------------------------------------
+
+describe('useAppStore — backup export/import', () => {
+  beforeEach(() => resetStore())
+
+  it('exportData returns serializable AppData JSON without draftTicketId', () => {
+    useAppStore.getState().addPerson('Alice')
+    useAppStore.getState().addTicket({ title: 'Cena', status: 'draft' })
+    const ticket = useAppStore.getState().tickets[0]
+    useAppStore.getState().setDraftTicketId(ticket.id)
+
+    const raw = useAppStore.getState().exportData()
+    const parsed = JSON.parse(raw)
+    expect(parsed.people).toHaveLength(1)
+    expect(parsed.tickets).toHaveLength(1)
+    expect(parsed.people[0].name).toBe('Alice')
+    expect(parsed.tickets[0].title).toBe('Cena')
+    expect(parsed.settings.preferredEngine).toBe('tesseract-ner')
+    expect(parsed.version).toBe(1)
+    expect('draftTicketId' in parsed).toBe(false)
+  })
+
+  it('importData round-trips a valid export back into state', () => {
+    useAppStore.getState().addPerson('Bob')
+    useAppStore.getState().addTicket({ title: 'Brunch', status: 'draft' })
+    const raw = useAppStore.getState().exportData()
+
+    useAppStore.getState().resetAll()
+    expect(useAppStore.getState().people).toHaveLength(0)
+
+    const ok = useAppStore.getState().importData(raw)
+    expect(ok).toBe(true)
+    expect(useAppStore.getState().people).toHaveLength(1)
+    expect(useAppStore.getState().people[0].name).toBe('Bob')
+    expect(useAppStore.getState().tickets[0].title).toBe('Brunch')
+    expect(useAppStore.getState().draftTicketId).toBeNull()
+  })
+
+  it('importData merges partial payload over defaults', () => {
+    const partial = JSON.stringify({
+      people: [],
+      groups: [],
+      tickets: [],
+      profile: { name: 'Carol', hasAccount: false },
+      settings: { defaultTaxRate: 0.21 },
+      featureFlags: { showOcrReview: true, verboseLogs: true, useMiniAgent: false },
+      version: 1,
+    })
+    const ok = useAppStore.getState().importData(partial)
+    expect(ok).toBe(true)
+    expect(useAppStore.getState().settings.defaultTaxRate).toBe(0.21)
+    expect(useAppStore.getState().settings.roundingMode).toBe('cents')
+    expect(useAppStore.getState().profile.name).toBe('Carol')
+    expect(useAppStore.getState().featureFlags.verboseLogs).toBe(true)
+  })
+
+  it('importData returns false and keeps state on malformed JSON', () => {
+    useAppStore.getState().addPerson('Dave')
+    const before = useAppStore.getState().exportData()
+
+    const ok = useAppStore.getState().importData('{not valid json')
+    expect(ok).toBe(false)
+    expect(useAppStore.getState().people).toHaveLength(1)
+    expect(useAppStore.getState().people[0].name).toBe('Dave')
+    expect(useAppStore.getState().exportData()).toBe(before)
+  })
+
+  it('importData returns false and keeps state on non-AppData shape', () => {
+    useAppStore.getState().addPerson('Eve')
+    const before = useAppStore.getState().exportData()
+
+    const ok = useAppStore.getState().importData(JSON.stringify({ foo: 'bar' }))
+    expect(ok).toBe(false)
+    expect(useAppStore.getState().people).toHaveLength(1)
+    expect(useAppStore.getState().exportData()).toBe(before)
+  })
+})

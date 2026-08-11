@@ -35,6 +35,46 @@ interface AppState extends AppData {
    * Clear the active draft ticket ID (wizard exit).
    */
   clearDraftTicketId: () => void
+
+  // ---------- Personas ----------
+  addPerson: (name: string) => Person
+  updatePerson: (id: ID, patch: Partial<Person>) => void
+  deletePerson: (id: ID) => void
+
+  // ---------- Grupos ----------
+  addGroup: (name: string, memberIds?: ID[]) => Group
+  updateGroup: (id: ID, patch: Partial<Group>) => void
+  deleteGroup: (id: ID) => void
+  addMemberToGroup: (groupId: ID, personId: ID) => void
+  removeMemberFromGroup: (groupId: ID, personId: ID) => void
+
+  // ---------- Tickets ----------
+  addTicket: (partial: Partial<Ticket>) => Ticket
+  updateTicket: (id: ID, patch: Partial<Ticket>) => void
+  deleteTicket: (id: ID) => void
+
+  // ---------- Items ----------
+  addTicketItem: (ticketId: ID, item?: Partial<TicketItem>) => void
+  updateTicketItem: (ticketId: ID, itemId: ID, patch: Partial<TicketItem>) => void
+  deleteTicketItem: (ticketId: ID, itemId: ID) => void
+
+  // ---------- Descuentos ----------
+  addTicketDiscount: (ticketId: ID, discount?: Partial<TicketDiscount>) => void
+  updateTicketDiscount: (ticketId: ID, discountId: ID, patch: Partial<TicketDiscount>) => void
+  deleteTicketDiscount: (ticketId: ID, discountId: ID) => void
+
+  // ---------- Recalc ----------
+  recalcTicket: (ticketId: ID) => void
+
+  // ---------- Perfil / ajustes ----------
+  updateProfile: (patch: Partial<AppData['profile']>) => void
+  updateSettings: (patch: Partial<AppData['settings']>) => void
+  updateFeatureFlags: (patch: Partial<AppData['featureFlags']>) => void
+  resetAll: () => void
+
+  // ---------- Backup ----------
+  exportData: () => string
+  importData: (json: string) => boolean
 }
 
 const DEFAULT_DATA: AppData = {
@@ -61,6 +101,29 @@ const DEFAULT_DATA: AppData = {
 
 function pickColor(index: number): string {
   return AVATAR_COLORS[index % AVATAR_COLORS.length]
+}
+
+/**
+ * Minimal structural guard for backup payloads. Rejects non-objects and
+ * payloads missing the core AppData shape (arrays people/groups/tickets,
+ * objects profile/settings/featureFlags, number version). No zod — v1
+ * contract keeps zero new dependencies.
+ */
+function isValidAppData(data: unknown): data is AppData {
+  if (typeof data !== 'object' || data === null) return false
+  const d = data as Record<string, unknown>
+  return (
+    Array.isArray(d.people) &&
+    Array.isArray(d.groups) &&
+    Array.isArray(d.tickets) &&
+    typeof d.profile === 'object' &&
+    d.profile !== null &&
+    typeof d.settings === 'object' &&
+    d.settings !== null &&
+    typeof d.featureFlags === 'object' &&
+    d.featureFlags !== null &&
+    typeof d.version === 'number'
+  )
 }
 
 export const useAppStore = create<AppState>()(
@@ -364,6 +427,37 @@ export const useAppStore = create<AppState>()(
           ...DEFAULT_DATA,
           draftTicketId: null,
         }),
+
+      // ---------- Backup ----------
+      exportData: () =>
+        JSON.stringify({
+          people: get().people,
+          groups: get().groups,
+          tickets: get().tickets,
+          profile: get().profile,
+          settings: get().settings,
+          featureFlags: get().featureFlags,
+          version: get().version,
+        }),
+      importData: (json) => {
+        try {
+          const parsed: unknown = JSON.parse(json)
+          if (!isValidAppData(parsed)) return false
+          set({
+            people: parsed.people,
+            groups: parsed.groups,
+            tickets: parsed.tickets,
+            profile: { ...DEFAULT_DATA.profile, ...parsed.profile },
+            settings: { ...DEFAULT_DATA.settings, ...parsed.settings },
+            featureFlags: { ...DEFAULT_DATA.featureFlags, ...parsed.featureFlags },
+            version: parsed.version,
+            draftTicketId: null,
+          })
+          return true
+        } catch {
+          return false
+        }
+      },
     }),
     {
       name: 'spliteat-app-v1',
