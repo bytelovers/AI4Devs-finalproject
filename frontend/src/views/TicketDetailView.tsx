@@ -82,6 +82,8 @@ export function TicketDetailView() {
       {editingTitle && (
         <div className="flex gap-2 mb-4">
           <input
+            id="edit-ticket-title"
+            aria-label="Título del ticket"
             value={titleDraft}
             onChange={(e) => setTitleDraft(e.target.value)}
             autoFocus

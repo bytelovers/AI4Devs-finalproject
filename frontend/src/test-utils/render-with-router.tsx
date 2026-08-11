@@ -12,7 +12,7 @@
  */
 
 import { ReactElement } from 'react'
-import { render, RenderOptions } from '@testing-library/react'
+import { render, RenderOptions, RenderResult } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
 export interface RouterRenderOptions extends Omit<RenderOptions, 'wrapper'> {
@@ -25,7 +25,7 @@ export interface RouterRenderOptions extends Omit<RenderOptions, 'wrapper'> {
 export function renderWithRouter(
   ui: ReactElement,
   { route = '/', initialEntries, ...options }: RouterRenderOptions = {}
-) {
+): RenderResult {
   const entries = initialEntries ?? [{ pathname: route }]
   return render(ui, {
     wrapper: ({ children }) => (

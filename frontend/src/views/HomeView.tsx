@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '@/lib/store'
 import { formatEUR, formatDate, computeShares, calcTicketTotal } from '@/lib/calc'
 import { EmptyState, PageHeader } from '@/components/ui/EmptyState'
-import { Avatar, AvatarStack } from '@/components/ui/Avatar'
+import { AvatarStack } from '@/components/ui/Avatar'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Plus, Receipt, ScanLine, TrendingUp, ChevronRight, CheckCircle2 } from 'lucide-react'
@@ -14,7 +14,6 @@ export function HomeView() {
   const navigate = useNavigate()
   const tickets = useAppStore((s) => s.tickets)
   const people = useAppStore((s) => s.people)
-  const setStartManual = (v: boolean) => useAppStore.setState({ _startManual: v })
   const [showAll, setShowAll] = useState(false)
 
   const displayedTickets = showAll ? tickets : tickets.slice(0, 5)
@@ -48,7 +47,6 @@ export function HomeView() {
               size="sm"
               variant="secondary"
               onClick={() => {
-                setStartManual(false)
                 navigate('/tickets/new')
               }}
               className="bg-white text-primary hover:bg-white/90 font-semibold"
@@ -60,7 +58,6 @@ export function HomeView() {
               size="sm"
               variant="outline"
               onClick={() => {
-                setStartManual(true)
                 navigate('/tickets/new')
               }}
               className="bg-white/10 border-white/30 text-white hover:bg-white/20 backdrop-blur-sm"
@@ -129,13 +126,12 @@ export function HomeView() {
           icon={Receipt}
           title="Aún no tienes tickets"
           description="Escanea tu primer ticket de restaurante para empezar a dividirlo entre tus contactos."
-          action={{
-            label: 'Crear primer ticket',
-            onClick: () => {
-                setStartManual(false)
-                setView('new-ticket')
+action={{
+              label: 'Crear primer ticket',
+              onClick: () => {
+                navigate('/tickets/new')
               },
-          }}
+            }}
           className="py-8"
         />
       ) : (

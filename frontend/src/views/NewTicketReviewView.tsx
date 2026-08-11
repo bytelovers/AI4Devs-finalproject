@@ -73,6 +73,7 @@ export function NewTicketReviewView() {
       {/* Title input */}
       <Card className="p-3 mb-4">
         <Input
+          aria-label="Título del ticket"
           defaultValue={ticket.title}
           onChange={(e) => handleTitleChange(e.target.value)}
           placeholder="Título del ticket (ej. Cena cumpleaños)"

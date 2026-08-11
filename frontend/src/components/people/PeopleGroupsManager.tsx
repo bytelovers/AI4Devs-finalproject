@@ -114,6 +114,7 @@ export function PeopleGroupsManager({
       <Card className="p-3">
         <div className="flex gap-2">
           <Input
+            aria-label="Añadir persona"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => {
@@ -334,6 +335,7 @@ export function PeopleGroupsManager({
           </DialogHeader>
           <div className="space-y-3">
             <Input
+              aria-label="Nombre del grupo"
               value={newGroupName}
               onChange={(e) => setNewGroupName(e.target.value)}
               placeholder="Nombre del grupo (ej. Piso, Oficina…)"

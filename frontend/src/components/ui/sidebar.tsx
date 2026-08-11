@@ -325,6 +325,7 @@ function SidebarInput({
     <Input
       data-slot="sidebar-input"
       data-sidebar="input"
+      aria-label="Buscar en la barra lateral"
       className={cn("bg-background h-8 w-full shadow-none", className)}
       {...props}
     />

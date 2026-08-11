@@ -615,6 +615,7 @@ function ItemAssignmentSheet({
                           <Minus className="h-3 w-3" />
                         </button>
                         <Input
+                          aria-label={`Peso de ${p.name}`}
                           type="number"
                           inputMode="decimal"
                           step="5"

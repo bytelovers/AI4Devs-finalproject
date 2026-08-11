@@ -90,6 +90,7 @@ export function TicketsListView() {
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
+            aria-label="Buscar tickets"
             placeholder="Buscar por título, comercio o items..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}

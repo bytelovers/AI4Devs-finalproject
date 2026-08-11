@@ -307,6 +307,7 @@ export function TicketItemsEditor({ ticket }: TicketItemsEditorProps) {
                   <div className="flex gap-2 items-center">
                     <Minus className="h-4 w-4 text-primary shrink-0" />
                     <Input
+                      aria-label="Nombre del descuento"
                       value={discount.name}
                       onChange={(e) =>
                         handleDiscountChange(discount.id, { name: e.target.value })
@@ -344,6 +345,7 @@ export function TicketItemsEditor({ ticket }: TicketItemsEditorProps) {
                     </div>
                     <div className="relative w-24">
                       <Input
+                        aria-label="Importe del descuento"
                         type="number"
                         inputMode="decimal"
                         step={isPercentage ? '1' : '0.5'}
@@ -478,6 +480,7 @@ function ItemRow({
         </div>
         <div className="flex-1 space-y-2">
           <Input
+            aria-label="Nombre del item"
             value={item.name}
             onChange={(e) => onChange({ name: e.target.value })}
             placeholder={`Item ${index + 1}`}
@@ -486,6 +489,7 @@ function ItemRow({
           <div className="flex gap-2 items-center">
             <div className="flex items-center gap-1">
               <Input
+                aria-label="Cantidad del item"
                 type="number"
                 inputMode="numeric"
                 min="1"
@@ -500,6 +504,7 @@ function ItemRow({
             </div>
             <div className="flex-1 relative">
               <Input
+                aria-label="Precio unitario del item"
                 type="number"
                 inputMode="decimal"
                 step="0.01"

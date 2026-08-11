@@ -114,6 +114,8 @@ export function GroupsView() {
                 {editingId === group.id ? (
                   <div className="flex gap-2">
                     <Input
+                      id="rename-group"
+                      aria-label="Renombrar grupo"
                       value={editName}
                       onChange={(e) => setEditName(e.target.value)}
                       onKeyDown={(e) => {
@@ -207,6 +209,7 @@ export function GroupsView() {
             <DialogTitle>Nuevo grupo</DialogTitle>
           </DialogHeader>
           <Input
+            aria-label="Nuevo grupo"
             value={nameInput}
             onChange={(e) => setNameInput(e.target.value)}
             onKeyDown={(e) => {

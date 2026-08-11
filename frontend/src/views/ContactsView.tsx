@@ -119,6 +119,8 @@ export function ContactsView() {
               {editingId === person.id ? (
                 <div className="flex gap-2 items-center">
                   <Input
+                    id="rename-contact"
+                    aria-label="Renombrar contacto"
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
                     onKeyDown={(e) => {
@@ -225,6 +227,7 @@ export function ContactsView() {
             <DialogTitle>Nuevo contacto</DialogTitle>
           </DialogHeader>
           <Input
+            aria-label="Nuevo contacto"
             value={nameInput}
             onChange={(e) => setNameInput(e.target.value)}
             onKeyDown={(e) => {
