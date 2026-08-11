@@ -135,7 +135,7 @@ export function useCamera(): UseCameraReturn {
     if (streamRef.current) {
       startCamera()
     }
-  }, [facingMode]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [facingMode])
 
   // Cleanup on unmount — guarantees stream teardown (prevents Vite HMR leaks)
   useEffect(() => {

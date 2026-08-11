@@ -35,5 +35,6 @@ export function renderWithRouter(
   })
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- test util re-exports testing-library
 export * from '@testing-library/react'
 export { renderWithRouter as render }

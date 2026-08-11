@@ -115,7 +115,6 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
   }, [])
 
   // Efecto: iniciar/detener cámara según modo
-  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (mode === 'live') {
       void startCamera()
@@ -124,7 +123,6 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
     }
     return () => stopCamera()
   }, [mode, facingMode, startCamera, stopCamera])
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Limpiar al desmontar
   useEffect(() => {

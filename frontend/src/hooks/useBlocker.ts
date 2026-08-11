@@ -19,7 +19,6 @@ export function useBlocker(when: boolean, message: string = '¿Descartar los cam
   useEffect(() => {
     if (blocker.state === 'blocked') {
       // Use native confirm for simplicity; replaceable with custom modal.
-      // eslint-disable-next-line no-alert
       const ok = window.confirm(message)
       if (ok) {
         blocker.proceed()

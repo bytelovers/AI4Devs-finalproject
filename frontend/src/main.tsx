@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */ // entry point: defines local components, nothing to fast-refresh
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
