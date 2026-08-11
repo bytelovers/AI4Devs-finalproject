@@ -41,6 +41,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Diagnose Vercel token access
+        run: |
+          echo "== whoami =="
+          npx vercel whoami --token=${{ secrets.VERCEL_TOKEN }}
+          echo "== project ls (primeros 20) =="
+          npx vercel project ls --token=${{ secrets.VERCEL_TOKEN }} 2>&1 | head -25
+
       - name: Pull Vercel environment information
         run: npx vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
 
