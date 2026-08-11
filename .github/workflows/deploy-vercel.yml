@@ -41,12 +41,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Diagnose Vercel token access
+      - name: Diagnose Vercel project access (non-blocking)
         run: |
-          echo "== whoami =="
-          npx vercel whoami --token=${{ secrets.VERCEL_TOKEN }}
-          echo "== project ls (primeros 20) =="
-          npx vercel project ls --token=${{ secrets.VERCEL_TOKEN }} 2>&1 | head -25
+          echo "== GET /v9/projects (scope check) =="
+          curl -sS -o /tmp/vercel-projects.json -w "HTTP %{http_code}\n" \
+            -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
+            "https://api.vercel.com/v9/projects"
+          head -c 400 /tmp/vercel-projects.json; echo
 
       - name: Pull Vercel environment information
         run: npx vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
