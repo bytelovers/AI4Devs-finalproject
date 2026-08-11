@@ -51,21 +51,26 @@ export function ScanEngineSelector({
 
   const handleSelect = async (engine: EngineInfo) => {
     if (engine.status === 'unavailable') return
-    if (engine.name === 'florence2' && engine.status === 'needs-download') {
-      if (onDownloadModel) {
-        onDownloadModel()
-        return
-      }
-      toast.info('Descarga el modelo Florence-2 desde el onboarding')
+    // Florence-2 sin modelo descargado: si hay callback de descarga lo usamos,
+    // si no, permitimos seleccionarlo igualmente (la descarga ocurre en el
+    // primer escaneo porque ocr.worker activa Florence según preferredEngine).
+    if (engine.name === 'florence2' && engine.status === 'needs-download' && onDownloadModel) {
+      onDownloadModel()
       return
     }
     updateSettings({ preferredEngine: engine.name })
+    if (engine.name === 'florence2' && engine.status === 'needs-download') {
+      toast.info(
+        'IA en dispositivo seleccionada. El modelo Florence-2 se descargará en el primer escaneo'
+      )
+    }
   }
 
   const isSelected = (engineName: string) => settings.preferredEngine === engineName
-  const isDisabled = (engine: EngineInfo) =>
-    engine.status === 'unavailable' ||
-    (engine.name === 'florence2' && engine.status === 'needs-download' && !onDownloadModel)
+  // Operativa: solo se deshabilita cuando la plataforma no está soportada.
+  // Para Florence-2 eso es NO tener WebGPU (status 'unavailable'). El modelo
+  // sin descargar ('needs-download') NO deshabilita el botón.
+  const isDisabled = (engine: EngineInfo) => engine.status === 'unavailable'
 
   const isFlorenceUnavailable = engines.some(
     (e) => e.name === 'florence2' && e.status === 'unavailable'
@@ -203,17 +208,20 @@ export function ScanEngineSelector({
               <Button
                 size="sm"
                 variant={selected ? 'default' : 'outline'}
-                disabled={disabled || isFlorenceUnavailable}
+                disabled={disabled}
+                data-testid={`select-${engine.name}`}
                 onClick={() => handleSelect(engine)}
               >
                 {selected ? (
                   <><CheckCircle2 className="h-4 w-4 mr-1" />Seleccionado</>
+                ) : disabled ? (
+                  'No disponible'
+                ) : engine.name === 'florence2' &&
+                  engine.status === 'needs-download' &&
+                  onDownloadModel ? (
+                  'Descargar modelo'
                 ) : (
-                  disabled
-                    ? engine.name === 'florence2' && engine.status === 'needs-download'
-                      ? 'Descargar modelo'
-                      : 'No disponible'
-                    : 'Seleccionar'
+                  'Seleccionar'
                 )}
               </Button>
             </div>

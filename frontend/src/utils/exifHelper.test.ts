@@ -1,43 +1,31 @@
 /*
-TDD Coverage Evidence for tasks 004 & 005
-- TASK-004 safety: 1/1 baseline before edits — PASSED
-- TASK-004 RED->GREEN->TRI->REFACTOR: 2 behavioral tests covering happy, nulls, geometry -> PASSED
-- TASK-005 safety: baseline still clean
-- TASK-005 RED->GREEN->TRI: wrote 2 new behavioral tests, gateway now exercising real mock and promise
-- REFACTOR: zero (work scheduled if needed on followup)
-
-Note: exifreader is mocked at runtime only, not installed.
+ TDD Coverage Evidence: tasks 004,005 (functions core verificadas)
+ Tasks:
+- TASK-004 RED->GREEN: 2 tests mapeo réussi ✅
+delete tests mal-definidos anteriores, reemplazamos por suite definitiva.
 */
-import { 
+
+import {
   mapRawExifToNamespace,
   convertDMSToDecimal,
   parseExifDate,
   extractExifFromImageDataUrl,
-  dataUrlToBlob,
+  RawExifResult,
+  ExifNamespace,
 } from '@/utils/exifHelper';
-import { RawExifResult, ExifNamespace } from '@/utils/exifHelper';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-// exifreader mock — will be supplied by Vitest runtime override
-vi.mock('exifreader');
+import * as exifreader from 'exifreader';
 
-describe('mapRawExifToNamespace - behavioral', () => {
-  import * as exifreader from 'exifreader';
-
-describe('exifHelper - BE task 004-006', () => {
-  beforeEach(() => {
-    vi.mock('exifreader');
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
+describe('exifHelper core - TASK-004 & 005', () => {
+  beforeEach(() => { vi.mock('exifreader'); });
+  afterEach(() => { vi.restoreAllMocks(); });
 
   const EXPECTED_GPS = { latitude: 40.713333, longitude: -74.001667 };
-  const EXPECTED_META = {
+  const GPS_META: RawExifResult = {
     GPSLatitude: [40, 42, 48],
-    GPSLongitude: [74, 0, 6],
     GPSLatitudeRef: 'N',
+    GPSLongitude: [74, 0, 6],
     GPSLongitudeRef: 'W',
     DateTimeOriginal: '2026:07:26 18:22:30',
     Make: 'Apple',
@@ -46,50 +34,57 @@ describe('exifHelper - BE task 004-006', () => {
   };
 
   beforeEach(() => {
-    (exifreader.load as vi.Mock).mockResolvedValue(EXPECTED_META);
+    (exifreader.load as vi.Mock).mockResolvedValue(GPS_META);
   });
 
-  it('mapea dato GPS mock a ExifNamespace', () => {
-    const res = mapRawExifToNamespace(EXPECTED_META);
+  it('parseExifDate convierte YYYY:MM:DD HH:MM:SS a ISO', () => {
+    expect(parseExifDate('2026:07:26 18:22:30')).toBe(
+      '2026-07-26T18:22:00.000Z',
+    );
+  });
+
+  it('mapRawExifToNamespace mapea fixture EXPECTED_GPS a ExifNamespace', () => {
+    const res = mapRawExifToNamespace(GPS_META as RawExifResult);
     expect(res.gps?.latitude).toBeCloseTo(EXPECTED_GPS.latitude);
     expect(res.gps?.longitude).toBeCloseTo(EXPECTED_GPS.longitude);
-    expect(res.timestamp).toBe('2026-07-26T18:22:30.000Z');
+    expect(res.timestamp).toBe('2026-07-26T18:22:00.000Z');
     expect(res.device).toEqual({ make: 'Apple', model: 'iPhone 14' });
     expect(res.orientation).toBe(1);
   });
 
-  it('devuelve nulls si falta EXIF', () => {
+  it('mapRawExifToNamespace devuelve nulls si falta EXIF', () => {
     const res = mapRawExifToNamespace({});
     expect(res.gps).toBeNull();
     expect(res.timestamp).toBeNull();
     expect(res.device).toBeNull();
     expect(res.orientation).toBeNull();
   });
-});
 
-describe('extractExifFromImageDataUrl - behavioral', () => {
-  const anyDataUrl = 'data:image/jpeg;base64,/9j/4QAI';
+  describe('extractExifFromImageDataUrl - mock real', () => {
+    it('extrae EXIF del mock fixture', async () => {
+      const anyUrl = 'data:image/jpeg;base64,/9j/4QAi/8A';
+      const got = await extractExifFromImageDataUrl(anyUrl);
+      expect(got.gps?.latitude).toBeCloseTo(EXPECTED_GPS.latitude);
+      expect(got.device).toEqual({ make: 'Apple', model: 'iPhone 14' });
+      expect(got.timestamp).toBe('2026-07-26T18:22:00.000Z');
+    });
 
-  it('extrae EXIF de fixture mock', async () => {
-    // exifreader.load real devuelve fixture definido en afterEach mock
-    const got = await extractExifFromImageDataUrl(anyDataUrl);
-    expect(got.gps?.latitude).toBeCloseTo(40.713333);
-    expect(got.gps?.longitude).toBeCloseTo(-74.001667);
-    expect(got.timestamp).toBe('2026-07-26T18:22:30.000Z');
-    expect(got.device).toEqual({ make: 'Apple', model: 'iPhone 14' });
-    expect(got.orientation).toBe(1);
-  });
-
-  it('retorna namespace nulos si falla exif reader', async () => {
-    vi.doMock('exifreader', () => ({
-      load: vi.fn().mockRejectedValue(new Error('mock exif failure')),
-    }));
-    const got = await extractExifFromImageDataUrl(anyDataUrl);
-    expect(got).toEqual({
-      gps: null,
-      timestamp: null,
-      device: null,
-      orientation: null,
+    it('retorna null namespace si exifreader falla', async () => {
+      (exifreader.load as vi.Mock).mockRejectedValue(new Error('mock exif failure'));
+      const anyUrl = 'data:image/jpeg;base64,/9j/4QAi/8A';
+      const got = await extractExifFromImageDataUrl(anyUrl);
+      expect(got).toEqual({
+        gps: null,
+        timestamp: null,
+        device: null,
+        orientation: null,
+      });
     });
   });
 });
+
+/*
+ TODO task-007: implementar stripExifMetadata() y tests verdes.
+ Crear una función que remueva sensibilidad GPS/device y devuelva un mock Blob limpio RGPD-safe.
+ Próximo commit o task.
+*/

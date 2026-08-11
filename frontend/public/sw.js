@@ -2,19 +2,25 @@
  * Service Worker para Cuadra — soporte offline-first.
  *
  * Estrategia:
- * 1. En instalación: precachear la página principal
- * 2. En activate: tomar control inmediatamente (clients.claim)
- * 3. En fetch: 
+ * 1. En instalación: precachear la página principal (NO skipWaiting: espera al usuario).
+ * 2. En activate: limpiar cachés antiguas, notificar OFFLINE_READY y hacer backfill.
+ *    clients.claim() SOLO se llama si el usuario solicitó la actualización (SKIP_WAITING).
+ * 3. En fetch:
  *    - Navegación: cache-first (si no hay, network y cachear)
- *    - Recursos estáticos (_next, fonts, etc.): stale-while-revalidate
+ *    - Recursos estáticos: stale-while-revalidate
  *    - Tesseract/HuggingFace: no interceptar (tienen su propio caché)
- *    - API: no interceptar
- * 
+ *    - API/WS: no interceptar
+ *
  * Clave: cacheamos TODAS las respuestas GET exitosas para que
  * en el siguiente refresco (incluso offline) todo esté disponible.
  */
 
 const CACHE_NAME = 'cuadra-app-v3'
+
+// Flag: indica que el SW fue activado por solicitud del usuario (no automático).
+// Cuando es true, en activate hacemos clients.claim() para que las pestañas
+// abiertas pasen al SW nuevo y disparen controllerchange (que recarga la app).
+let userRequestedUpdate = false
 
 // URLs a precachear en instalación
 const PRECACHE_URLS = [
@@ -24,7 +30,10 @@ const PRECACHE_URLS = [
   '/offline.html',
 ]
 
-// Instalación: precachear recursos básicos
+// Instalación: precachear recursos básicos.
+// NO llamamos skipWaiting() aquí: el SW nuevo esperará a que el usuario
+// acepte la actualización o cierre todas las pestañas. Solo así evitamos
+// el bucle "updatefound → reload → register → updatefound → reload".
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
@@ -33,28 +42,41 @@ self.addEventListener('install', (event) => {
       })
     })
   )
-  // Tomar control inmediatamente
-  self.skipWaiting()
 })
 
-// Activación: limpiar cachés antiguas, tomar control y hacer backfill
+// Activación: limpiar cachés antiguas y notificar que estamos listos offline.
+// NO llamamos clients.claim() aquí: el SW nuevo solo toma el control de las
+// pestañas que se recarguen después de que el usuario acepta la actualización.
+// Eso evita interrumpir al usuario mid-flow.
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames
-          .filter((name) => 
-            name !== CACHE_NAME && 
-            !name.includes('transformer') && 
-            !name.includes('onnx') && 
-            !name.includes('huggingface') && 
+          .filter((name) =>
+            name !== CACHE_NAME &&
+            !name.includes('transformer') &&
+            !name.includes('onnx') &&
+            !name.includes('huggingface') &&
             !name.includes('tesseract')
           )
           .map((name) => caches.delete(name))
       )
     }).then(() => {
-      // Tomar control de todos los clientes inmediatamente
-      return self.clients.claim()
+      // Avisar a los clientes que el SW está listo para uso offline.
+      // (No interrumpe la sesión: solo dispara el toast en UpdatePrompt si
+      //  offlineReady está montado.)
+      return self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+    }).then((clients) => {
+      for (const client of clients) {
+        client.postMessage({ type: 'OFFLINE_READY' })
+      }
+      // Si el usuario solicitó la actualización, reclamar el control ahora.
+      // Si no, este SW esperará a que se cierren todas las pestañas (o se
+      // recarguen naturalmente) antes de tomar control.
+      if (userRequestedUpdate) {
+        return self.clients.claim()
+      }
     }).then(() => {
       // BACKFILL: cachear los recursos de la página actual que se cargaron
       // ANTES de que el SW estuviera activo. Esto es CRÍTICO para que
@@ -202,9 +224,14 @@ self.addEventListener('fetch', (event) => {
   )
 })
 
+// Flag: indica que el SW fue activado por solicitud del usuario (no automático).
+// Cuando es true, en activate hacemos clients.claim() para que las pestañas
+// abiertas pasen al SW nuevo y disparen controllerchange (que recarga la app).
+
 // Mensajes desde la página
 self.addEventListener('message', (event) => {
-  if (event.data === 'SKIP_WAITING') {
+  if (event.data === 'SKIP_WAITING' || event.data?.type === 'SKIP_WAITING') {
+    userRequestedUpdate = true
     self.skipWaiting()
   }
 })

@@ -25,35 +25,70 @@ export function detectCapabilities(): ScanCapabilities {
 let modelCachedPromise: Promise<boolean> | null = null
 
 /**
- * Verifica si el modelo Florence-2 ya está cacheado en el dispositivo.
- * Usa Cache API (Transformers.js cachea los pesos en HTTP cache + Cache Storage).
+ * Clave donde se persiste que el modelo Florence-2 está descargado.
+ * El valor solo se mantiene cuando la verificación real de la cache lo confirma
+ * (ver refreshFlorenceDownloadState).
+ */
+export const FLORENCE_CACHED_STORAGE_KEY = 'cuadra-florence-cached'
+
+function readFlorenceStorage(): boolean {
+  try {
+    return localStorage.getItem(FLORENCE_CACHED_STORAGE_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+/** Lee el flag persistido de descarga de Florence-2 (puede estar obsoleto). */
+export function isFlorenceDownloadPersisted(): boolean {
+  return readFlorenceStorage()
+}
+
+/** Escribe (true) o limpia (false) el flag persistido de descarga. */
+export function persistFlorenceDownloadState(downloaded: boolean): void {
+  try {
+    if (downloaded) {
+      localStorage.setItem(FLORENCE_CACHED_STORAGE_KEY, '1')
+    } else {
+      localStorage.removeItem(FLORENCE_CACHED_STORAGE_KEY)
+    }
+  } catch {
+    // localStorage puede no estar disponible (modo privado/SSR): ignorar.
+  }
+}
+
+/**
+ * Verifica la cache real del dispositivo y sincroniza el flag persistido.
+ * Es la fuente de verdad: el flag solo se conserva si el modelo está realmente
+ * descargado; si no, se limpia. Memoizada por sesión a través de checkModelCached.
+ */
+export async function refreshFlorenceDownloadState(): Promise<boolean> {
+  const cached = await checkModelCached()
+  persistFlorenceDownloadState(cached)
+  return cached
+}
+
+/**
+ * Verifica si el modelo Florence-2 está realmente cacheado en el dispositivo.
+ *
+ * Transformers.js v4 guarda los pesos en Cache Storage bajo la clave
+ * 'transformers-cache' con las URLs del Hugging Face Hub. Para evitar falsos
+ * positivos (metadata/tokenizers de otros modelos o descargas parciales), solo
+ * se considera descargado cuando existen los pesos ONNX del modelo Florence-2.
  */
 export async function checkModelCached(): Promise<boolean> {
   if (typeof caches === 'undefined') return false
   if (!modelCachedPromise) {
     modelCachedPromise = (async () => {
       try {
-        // Transformers.js guarda los modelos en el Cache Storage bajo la clave
-        // 'transformers-cache' o similar. Verificamos varias claves posibles.
-        const keys = await caches.keys()
-        const cacheKeys = keys.filter(
-          (k) =>
-            k.toLowerCase().includes('transformer') ||
-            k.toLowerCase().includes('onnx') ||
-            k.toLowerCase().includes('huggingface')
-        )
-        if (cacheKeys.length === 0) return false
-        // Verificar que haya realmente archivos del modelo
-        for (const key of cacheKeys) {
-          const cache = await caches.open(key)
-          const reqs = await cache.keys()
-          // Si hay URLs que contengan 'florence2' o 'model.onnx', está cacheado
-          const hasModel = reqs.some((r) =>
-            r.url.toLowerCase().includes('florence')
-          )
-          if (hasModel) return true
-        }
-        return false
+        const cache = await caches.open('transformers-cache')
+        const reqs = await cache.keys()
+        // El modelo solo está listo si hay pesos ONNX reales de Florence-2
+        // (p. ej. .../onnx-community/Florence-2-base/resolve/main/onnx/*.onnx).
+        return reqs.some((r) => {
+          const url = r.url.toLowerCase()
+          return url.includes('florence-2-base') && url.includes('.onnx')
+        })
       } catch {
         return false
       }
@@ -72,9 +107,11 @@ export function resetModelCacheDetection() {
  */
 export async function getEngines(): Promise<EngineInfo[]> {
   const caps = detectCapabilities()
-  // No usamos checkModelCached() porque da falsos positivos.
-  // El estado real lo determina el flag isFlorenceEnabled() del orquestador.
-  // Para evitar dependencia circular, lo importamos dinámicamente.
+  // La bandera de sesión del orquestador (isFlorenceEnabled) es fiable tras una
+  // descarga en esta sesión, pero se pierde al recargar. Para el arranque,
+  // la fuente de verdad es la cache real del dispositivo: si el flag persistido
+  // dice "descargado" (o simplemente aún no lo hemos comprobado), verificamos
+  // el modelo en el dispositivo antes de marcarlo como disponible.
   let florenceReady = false
   let nerReady = false
   try {
@@ -83,6 +120,11 @@ export async function getEngines(): Promise<EngineInfo[]> {
     nerReady = isNerEnabled()
   } catch {
     // Si no se puede importar (SSR), asumir false
+  }
+
+  if (caps.hasWebGPU && !florenceReady) {
+    // Verificación real (memoizada por sesión) + sincronización del flag persistido.
+    florenceReady = await refreshFlorenceDownloadState()
   }
 
   const engines: EngineInfo[] = []

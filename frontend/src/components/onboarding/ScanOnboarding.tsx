@@ -34,13 +34,8 @@ import type { EngineInfo } from '@/lib/scan/types'
 import type { DownloadSummary } from '@/lib/scan/download-tracker'
 import { formatBytes, formatSpeed, formatETA } from '@/lib/scan/download-tracker'
 
-// isFlorenceEnabled nos dice si el modelo está realmente descargado y listo
-// (se establece a true solo después de un prewarm exitoso).
-// checkModelCached daba falsos positivos, por eso no lo usamos.
-async function isFlorenceReady(): Promise<boolean> {
-  const { isFlorenceEnabled } = await import('@/lib/scan/orchestrator')
-  return isFlorenceEnabled()
-}
+// El estado de "modelo descargado" lo determina getEngines(): verifica la cache
+// real del dispositivo (pesos ONNX de Florence-2) y respeta el flag persistido.
 
 interface ScanOnboardingProps {
   open: boolean
@@ -80,8 +75,7 @@ export function ScanOnboarding({ open, onClose, onUseServer, onUseTesseract, onU
   const loadEngines = async () => {
     const e = await getEngines()
     setEngines(e)
-    const ready = await isFlorenceReady()
-    setIsCached(ready)
+    setIsCached(e.find((x) => x.name === 'florence2')?.status === 'available')
   }
 
   const handleDownload = async () => {
@@ -111,6 +105,13 @@ export function ScanOnboarding({ open, onClose, onUseServer, onUseTesseract, onU
       // volver a verificar caché.
       const { enableFlorenceEngine } = await import('@/lib/scan/orchestrator')
       enableFlorenceEngine()
+      // Verificar la cache real (reseteando la detección memoizada de la sesión)
+      // y persistir el estado de descarga para futuras sesiones.
+      const { resetModelCacheDetection, refreshFlorenceDownloadState } = await import(
+        '@/lib/scan/capabilities'
+      )
+      resetModelCacheDetection()
+      await refreshFlorenceDownloadState()
       // Pequeña espera para que el "verificando" se vea
       await new Promise((r) => setTimeout(r, 800))
       setStage('done')

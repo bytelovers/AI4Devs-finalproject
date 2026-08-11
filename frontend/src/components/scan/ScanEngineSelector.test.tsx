@@ -1,68 +1,59 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { ScanEngineSelector } from './ScanEngineSelector'
 import { useAppStore } from '@/lib/store'
+import { getEngines } from '@/lib/scan/capabilities'
+import { toast } from 'sonner'
+import type { EngineInfo } from '@/lib/scan/types'
+
+vi.mock('sonner', () => ({
+  toast: { info: vi.fn(), success: vi.fn(), error: vi.fn() },
+}))
 
 vi.mock('@/lib/scan/capabilities', () => ({
-  getEngines: vi.fn().mockResolvedValue([
-    {
-      name: 'tesseract',
-      userLabel: 'Escaneo basico',
-      techLabel: 'OCR en dispositivo (Tesseract)',
-      userDescription: 'Escaneo rapido sin descarga. Funciona en cualquier dispositivo.',
-      techDescription: 'Tesseract · Precision media · Sin WebGPU requerido · ~5MB',
-      precision: 'Media' as const,
-      weight: 'Sin descarga',
-      requiresConnection: false,
-      requiresDownload: false,
-      icon: 'Cpu',
-      iconColor: 'text-muted-foreground',
-      status: 'available' as const,
-    },
-    {
-      name: 'tesseract-ner',
-      userLabel: 'Escaneo con IA',
-      techLabel: 'OCR + IA (Tesseract + NER)',
-      userDescription: 'Escaneo mejorado con inteligencia artificial. Detecta mejor los productos y nombres.',
-      techDescription: 'Tesseract + BERT español · Precision media-alta · ~110MB · Mini-agente incluido',
-      precision: 'Media-Alta' as const,
-      weight: '~110MB',
-      requiresConnection: false,
-      requiresDownload: true,
-      icon: 'Sparkles',
-      iconColor: 'text-primary',
-      status: 'available' as const,
-    },
-    {
-      name: 'florence2',
-      userLabel: 'Escaneo avanzado',
-      techLabel: 'IA en dispositivo (Florence-2)',
-      userDescription: 'Maxima precision sin conexion. Requiere un dispositivo moderno con WebGPU.',
-      techDescription: 'Florence-2 · Precision alta · Requiere WebGPU · ~400MB',
-      precision: 'Alta' as const,
-      weight: '~400MB',
-      requiresConnection: false,
-      requiresDownload: true,
-      icon: 'Cpu',
-      iconColor: 'text-primary',
-      status: 'available' as const,
-    },
-    {
-      name: 'server',
-      userLabel: 'IA en la nube',
-      techLabel: 'IA en el servidor (glm-4.5v)',
-      userDescription: 'Maxima precision usando inteligencia artificial en la nube. Requiere conexion a internet.',
-      techDescription: 'glm-4.5v · Precision alta · Requiere conexion · 0MB local',
-      precision: 'Alta' as const,
-      weight: '0MB (en la nube)',
-      requiresConnection: true,
-      requiresDownload: false,
-      icon: 'Cloud',
-      iconColor: 'text-blue-500',
-      status: 'available' as const,
-    },
-  ]),
+  getEngines: vi.fn(),
 }))
+
+// Evita cargar los motores pesados (transformers, tesseract) en jsdom.
+vi.mock('@/lib/scan/orchestrator', () => ({
+  isFlorenceEnabled: vi.fn(() => false),
+  isNerEnabled: vi.fn(() => false),
+}))
+
+const baseEngines: EngineInfo[] = [
+  {
+    name: 'tesseract',
+    label: 'OCR en tu dispositivo',
+    description: 'OCR sin WebGPU',
+    status: 'available',
+    estimatedTime: '8-20s',
+    accuracy: 'medium',
+  },
+  {
+    name: 'tesseract-ner',
+    label: 'OCR + IA (Tesseract + NER)',
+    description: 'Tesseract + BERT español',
+    status: 'available',
+    estimatedTime: '15-40s',
+    accuracy: 'high',
+  },
+  {
+    name: 'florence2',
+    label: 'IA en tu dispositivo (Florence-2)',
+    description: 'Modelo Florence-2',
+    status: 'available',
+    estimatedTime: '5-15s',
+    accuracy: 'high',
+  },
+  {
+    name: 'server',
+    label: 'IA en el servidor',
+    description: 'glm-4.5v',
+    status: 'available',
+    estimatedTime: '3-5s',
+    accuracy: 'high-but-server',
+  },
+]
 
 const localStorageMock = (() => {
   let store: Record<string, string> = {}
@@ -105,6 +96,8 @@ beforeEach(() => {
     value: undefined,
   })
 
+  vi.mocked(getEngines).mockResolvedValue(baseEngines)
+
   useAppStore.getState().resetAll()
 })
 
@@ -125,6 +118,54 @@ describe('ScanEngineSelector', () => {
     await waitFor(() => {
       const selectedButtons = screen.getAllByText(/Seleccionado/i)
       expect(selectedButtons.length).toBe(1)
+    })
+  })
+
+  it('habilita IA en dispositivo cuando el modelo falta (needs-download)', async () => {
+    vi.mocked(getEngines).mockResolvedValueOnce(
+      baseEngines.map((e) =>
+        e.name === 'florence2' ? { ...e, status: 'needs-download' as const } : e
+      )
+    )
+    render(<ScanEngineSelector />)
+    await waitFor(() => {
+      const btn = screen.getByTestId('select-florence2')
+      expect(btn).not.toBeDisabled()
+      expect(btn).toHaveTextContent('Seleccionar')
+    })
+  })
+
+  it('permite seleccionar IA en dispositivo sin modelo descargado', async () => {
+    vi.mocked(getEngines).mockResolvedValueOnce(
+      baseEngines.map((e) =>
+        e.name === 'florence2' ? { ...e, status: 'needs-download' as const } : e
+      )
+    )
+    render(<ScanEngineSelector />)
+    await waitFor(() => {
+      expect(screen.getByTestId('select-florence2')).not.toBeDisabled()
+    })
+    fireEvent.click(screen.getByTestId('select-florence2'))
+    await waitFor(() => {
+      expect(useAppStore.getState().settings.preferredEngine).toBe('florence2')
+      expect(screen.getByTestId('select-florence2')).toHaveTextContent('Seleccionado')
+    })
+    expect(toast.info).toHaveBeenCalled()
+  })
+
+  it('sin WebGPU bloquea solo IA en dispositivo, el resto sigue operativo', async () => {
+    vi.mocked(getEngines).mockResolvedValueOnce(
+      baseEngines.map((e) =>
+        e.name === 'florence2' ? { ...e, status: 'unavailable' as const } : e
+      )
+    )
+    render(<ScanEngineSelector />)
+    await waitFor(() => {
+      const florenceBtn = screen.getByTestId('select-florence2')
+      expect(florenceBtn).toBeDisabled()
+      expect(florenceBtn).toHaveTextContent('No disponible')
+      expect(screen.getByTestId('select-tesseract')).not.toBeDisabled()
+      expect(screen.getByTestId('select-server')).not.toBeDisabled()
     })
   })
 })
