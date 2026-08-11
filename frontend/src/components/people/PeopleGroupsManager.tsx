@@ -13,13 +13,6 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet'
-import {
-  Plus,
   Users,
   Folder,
   Check,
@@ -61,7 +54,6 @@ export function PeopleGroupsManager({
   const groups = useAppStore((s) => s.groups)
   const addPerson = useAppStore((s) => s.addPerson)
   const addGroup = useAppStore((s) => s.addGroup)
-  const addMemberToGroup = useAppStore((s) => s.addMemberToGroup)
   const [newName, setNewName] = useState('')
   const [showGroups, setShowGroups] = useState(false)
   const [showNewGroup, setShowNewGroup] = useState(false)
@@ -74,11 +66,6 @@ export function PeopleGroupsManager({
     const person = addPerson(name)
     onAddPeople([person.id])
     setNewName('')
-  }
-
-  const handleImportGroup = (memberIds: ID[]) => {
-    onAddPeople(memberIds)
-    toast.success(`${memberIds.length} personas añadidas`)
   }
 
   /** Toggle todas las personas de un grupo: si todas están seleccionadas, las quita; si no, las añade */

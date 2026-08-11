@@ -44,7 +44,7 @@ describe('useCamera Hook', () => {
         imageSmoothingEnabled: false,
         imageSmoothingQuality: 'low' as ImageSmoothingQuality,
       } as unknown as CanvasRenderingContext2D
-    })
+    }) as unknown as typeof HTMLCanvasElement.prototype.getContext
 
     // Mock HTMLCanvasElement.prototype.toDataURL
     HTMLCanvasElement.prototype.toDataURL = vi.fn(() => 'data:image/jpeg;base64,mockdata')

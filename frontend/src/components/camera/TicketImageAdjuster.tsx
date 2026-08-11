@@ -1,9 +1,8 @@
 'use client'
 
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   assessImageQuality,
-  QualityAssessorConfig,
 } from '@/lib/scan/imageQualityAssessor'
 import type {
   CropSection,
@@ -17,7 +16,6 @@ import { Slider } from '@/components/ui/slider'
 import {
   Sun,
   Contrast,
-  Sliders,
   RotateCcw,
   Plus,
   Zap,
@@ -81,7 +79,6 @@ export function TicketImageAdjuster({
   const [dragStartPos, setDragStartPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
   const [dragStartRect, setDragStartRect] = useState<NormalizedCropRect | null>(null)
 
-  const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
 
   // Evaluate image quality whenever imageDataUrl or canvas context changes

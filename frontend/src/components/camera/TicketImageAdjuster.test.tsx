@@ -1,8 +1,7 @@
-import React from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { TicketImageAdjuster } from './TicketImageAdjuster'
-import type { ImageAdjustmentOptions, ImageQualityMetrics } from '@/lib/scan/types'
+import type { ImageQualityMetrics } from '@/lib/scan/types'
 
 global.ResizeObserver = class ResizeObserver {
   observe() {}

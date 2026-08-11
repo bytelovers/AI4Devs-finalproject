@@ -103,7 +103,7 @@ describe('Image Quality Assessor Engine (Phase 2)', () => {
     })
 
     it('returns warning_blur status and warning banner for blurry image', () => {
-      const imageData = createMockImageData(100, 100, (x, y) => {
+      const imageData = createMockImageData(100, 100, (x) => {
         // Smooth gradient, low edge sharpness
         const val = 128 + Math.round(5 * Math.sin(x / 10))
         return [val, val, val, 255]

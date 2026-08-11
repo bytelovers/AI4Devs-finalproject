@@ -40,9 +40,6 @@ export function NewTicketCaptureView() {
   const recalcTicket = useAppStore((s) => s.recalcTicket)
   const addTicketItem = useAppStore((s) => s.addTicketItem)
   const preferredEngine = useAppStore((s) => s.settings.preferredEngine)
-  const showOcrReview = useAppStore(
-    (s) => s.featureFlags.showOcrReview
-  )
   const navigate = useNavigate()
 
   const [phase, setPhase] = useState<CapturePhase>('capture')

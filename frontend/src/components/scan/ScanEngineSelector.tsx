@@ -8,18 +8,11 @@ import {
   Server,
   Cpu,
   Sparkles,
-  ShieldCheck,
-  Flag,
-  ChevronRight,
   Zap,
   Wifi,
   Download,
   CheckCircle2,
-  AlertCircle,
-  Gauge,
   HardDrive,
-  Clock,
-  FileCheck,
 } from 'lucide-react'
 import { getEngines } from '@/lib/scan/capabilities'
 import type { EngineInfo } from '@/lib/scan/types'
@@ -31,11 +24,8 @@ export function ScanEngineSelector({
 }: { detailed?: boolean; onDownloadModel?: () => void }) {
   const settings = useAppStore((s) => s.settings)
   const updateSettings = useAppStore((s) => s.updateSettings)
-  const featureFlags = useAppStore((s) => s.featureFlags)
-  const updateFeatureFlags = useAppStore((s) => s.updateFeatureFlags)
 
   const [engines, setEngines] = useState<EngineInfo[]>([])
-  const [isFlorenceCached, setIsFlorenceCached] = useState(false)
 
   useEffect(() => {
     loadEngines()
@@ -44,9 +34,6 @@ export function ScanEngineSelector({
   const loadEngines = async () => {
     const e = await getEngines()
     setEngines(e)
-    // isFlorenceEnabled se usa en orchestrator para determinar si Florence está habilitado
-    const { isFlorenceEnabled } = await import('@/lib/scan/orchestrator')
-    setIsFlorenceCached(isFlorenceEnabled())
   }
 
   const handleSelect = async (engine: EngineInfo) => {
@@ -104,7 +91,7 @@ export function ScanEngineSelector({
           >
             <div className="flex items-center gap-3">
               <div className="h-8 w-8 rounded-lg flex items-center justify-center shrink-0">
-                {isSelected ? (
+                {selected ? (
                   <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
                     <Icon className="h-4 w-4 text-primary" />
                   </div>

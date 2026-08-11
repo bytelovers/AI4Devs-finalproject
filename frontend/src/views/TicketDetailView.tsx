@@ -9,7 +9,7 @@ import { PeopleGroupsManager } from '@/components/people/PeopleGroupsManager'
 import { PageHeader, EmptyState } from '@/components/ui/EmptyState'
 import { Button } from '@/components/ui/button'
 import { useState, useEffect } from 'react'
-import { Receipt, Edit3, ListChecks, Users, Pencil } from 'lucide-react'
+import { Receipt, ListChecks, Users, Pencil } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type DetailTab = 'summary' | 'items' | 'participants' | 'assign'

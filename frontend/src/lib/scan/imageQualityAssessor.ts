@@ -138,9 +138,7 @@ export function assessImageQuality(
   const {
     blurThreshold = 100.0,
     minBrightness = 60.0,
-    maxBrightness = 220.0,
     minContrast = 25.0,
-    minCharHeightPx = 32.0,
   } = config
 
   const { data, width, height } = imageData

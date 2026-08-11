@@ -5,11 +5,11 @@ import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '@/lib/store'
 import { formatEUR, formatDate, computeShares, calcTicketTotal } from '@/lib/calc'
 import { EmptyState, PageHeader } from '@/components/ui/EmptyState'
-import { Avatar, AvatarStack } from '@/components/ui/Avatar'
+import { AvatarStack } from '@/components/ui/Avatar'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Plus, Receipt, ScanLine, TrendingUp, ChevronRight, CheckCircle2, Search, Filter, Calendar, X } from 'lucide-react'
+import { Plus, Receipt, TrendingUp, ChevronRight, CheckCircle2, Search, Filter, X } from 'lucide-react'
 
 export function TicketsListView() {
   const tickets = useAppStore((s) => s.tickets)

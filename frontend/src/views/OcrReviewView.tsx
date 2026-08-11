@@ -1,13 +1,9 @@
 'use client'
 
 import { useCallback, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { useAppStore } from '@/lib/store'
-import type { ScanResult, ScanProgress } from '@/lib/scan/types'
 import { PageHeader } from '@/components/ui/EmptyState'
 import { Button } from '@/components/ui/button'
-import { Camera, Wand2, Edit3, RefreshCw, ChevronLeft } from 'lucide-react'
-import { toast } from 'sonner'
+import { Camera, Wand2, Edit3 } from 'lucide-react'
 
 interface OcrReviewViewProps {
   /** If provided, use controlled mode */
@@ -27,11 +23,6 @@ export function OcrReviewView({
   onSkip,
   onBack,
 }: OcrReviewViewProps) {
-  const navigate = useNavigate()
-  const { ticketId } = useParams()
-  const updateTicket = useAppStore((s) => s.updateTicket)
-  const featureFlags = useAppStore((s) => s.featureFlags)
-
   const [rawText, setRawText] = useState(initialRawText || '')
 
   // If controlled, sync with prop

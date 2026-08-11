@@ -30,57 +30,6 @@ export interface UseCameraReturn {
 const MAX_DIMENSION = 1920
 const JPEG_QUALITY = 0.8
 
-/**
- * Compress a video frame to a JPEG data URL with max dimension constraint.
- * Uses ImageCapture.grabFrame() when available, falls back to canvas drawImage.
- */
-async function captureFrameInternal(
-  video: HTMLVideoElement,
-  maxDim: number,
-  quality: number
-): Promise<string | null> {
-  try {
-    // Prefer ImageCapture API (Chrome Android) for higher quality
-    if (typeof ImageCapture !== 'undefined') {
-      const track = (video.srcObject as MediaStream)?.getVideoTracks()[0]
-      if (track) {
-        const capture = new ImageCapture(track)
-        const bitmap = await capture.grabFrame()
-        return compressBitmap(bitmap, maxDim, quality)
-      }
-    }
-  } catch {
-    // ImageCapture.grabFrame() may fail on some devices; fall through to canvas
-  }
-
-  // Universal fallback: canvas drawImage
-  return compressVideoFrame(video, maxDim, quality)
-}
-
-function compressBitmap(
-  bitmap: ImageBitmap,
-  maxDim: number,
-  quality: number
-): string | null {
-  const canvas = document.createElement('canvas')
-  let { width, height } = bitmap
-
-  if (width > maxDim || height > maxDim) {
-    const scale = maxDim / Math.max(width, height)
-    width = Math.round(width * scale)
-    height = Math.round(height * scale)
-  }
-
-  canvas.width = width
-  canvas.height = height
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return null
-
-  ctx.drawImage(bitmap, 0, 0, width, height)
-  bitmap.close()
-  return canvas.toDataURL('image/jpeg', quality)
-}
-
 function compressVideoFrame(
   video: HTMLVideoElement,
   maxDim: number,

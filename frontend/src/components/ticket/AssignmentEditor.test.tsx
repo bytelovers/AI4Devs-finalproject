@@ -123,8 +123,8 @@ describe('AssignmentEditor', () => {
     })
 
     // Find the "1 persona" mode button INSIDE the Sheet and click it
-    const sheet = screen.getByText('Asignar: Paella').closest('[role="dialog"]')
-    const singleBtn = within(sheet!).getAllByText('1 persona').find(
+    const sheet = screen.getByText('Asignar: Paella').closest('[role="dialog"]') as HTMLElement
+    const singleBtn = within(sheet).getAllByText('1 persona').find(
       (el) => el.tagName === 'BUTTON' || el.closest('button')
     )!
     fireEvent.click(singleBtn)
@@ -140,7 +140,7 @@ describe('AssignmentEditor', () => {
     })
   })
 
-  it('mode shared normalizes all weights to 1', async () => {
+  it('mode shared normalizes all weights to 1/N', async () => {
     const ticket = createTicketWithAssignments()
     renderEditor(ticket)
 
@@ -162,7 +162,7 @@ describe('AssignmentEditor', () => {
       const cervezaItem = updatedTicket.items.find((it) => it.name === 'Cerveza')!
       expect(cervezaItem.mode).toBe('shared')
       expect(cervezaItem.assignments).toHaveLength(2)
-      cervezaItem.assignments.forEach((a) => expect(a.weight).toBe(1))
+      cervezaItem.assignments.forEach((a) => expect(a.weight).toBeCloseTo(1 / 2, 5))
     })
   })
 
@@ -180,8 +180,8 @@ describe('AssignmentEditor', () => {
 
     // Initially Cerveza has 2 assignments (Ana, Beto)
     // Click Carlos's person chip to add him
-    const sheet = screen.getByText('Asignar: Cerveza').closest('[role="dialog"]')
-    const carlosChip = within(sheet!).getByText('Carlos')
+    const sheet = screen.getByText('Asignar: Cerveza').closest('[role="dialog"]') as HTMLElement
+    const carlosChip = within(sheet).getByText('Carlos')
     fireEvent.click(carlosChip)
 
     await waitFor(() => {
@@ -195,8 +195,8 @@ describe('AssignmentEditor', () => {
     rerenderWithUpdatedTicket(rerender, ticket.id)
 
     // Click Carlos's chip again to remove (re-query after re-render)
-    const updatedSheet = screen.getByText('Asignar: Cerveza').closest('[role="dialog"]')
-    const carlosChipAgain = within(updatedSheet!).getByText('Carlos')
+    const updatedSheet = screen.getByText('Asignar: Cerveza').closest('[role="dialog"]') as HTMLElement
+    const carlosChipAgain = within(updatedSheet).getByText('Carlos')
     fireEvent.click(carlosChipAgain)
 
     await waitFor(() => {
@@ -207,7 +207,7 @@ describe('AssignmentEditor', () => {
     })
   })
 
-  it('weighted mode number-step +0.5 updates store', async () => {
+  it('weighted mode number-step +0.05 updates store', async () => {
     const ticket = createTicketWithAssignments()
     renderEditor(ticket)
 
@@ -224,10 +224,10 @@ describe('AssignmentEditor', () => {
     const numberInputs = document.querySelectorAll('input[type="number"]')
     expect(numberInputs.length).toBeGreaterThan(0)
 
-    // Get initial weight for Ana (should be 0.5)
+    // Input shows percentage (weight * 100): 0.5 → "50"
     const anaInput = numberInputs[0] as HTMLInputElement
     const initialWeight = parseFloat(anaInput.value)
-    expect(initialWeight).toBe(0.5)
+    expect(initialWeight).toBe(50)
 
     // Find the + button (next to the input) - it's the button after the input
     const plusButton = anaInput.nextElementSibling as HTMLButtonElement
@@ -238,7 +238,7 @@ describe('AssignmentEditor', () => {
       const updatedTicket = useAppStore.getState().tickets.find((t) => t.id === ticket.id)!
       const postreItem = updatedTicket.items.find((it) => it.name === 'Postre')!
       const anaAssignment = postreItem.assignments.find((a) => a.personId === ticket.participantIds[0])!
-      expect(anaAssignment.weight).toBe(1.0) // 0.5 + 0.5 = 1.0
+      expect(anaAssignment.weight).toBeCloseTo(0.55, 5) // 0.5 + 0.05 = 0.55
     })
   })
 

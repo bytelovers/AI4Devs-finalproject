@@ -32,12 +32,9 @@ import {
   FolderPlus,
   Trash2,
   Users,
-  ChevronRight,
   UserPlus,
-  Check,
   Pencil,
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 
 export function GroupsView() {
@@ -46,8 +43,6 @@ export function GroupsView() {
   const addGroup = useAppStore((s) => s.addGroup)
   const updateGroup = useAppStore((s) => s.updateGroup)
   const deleteGroup = useAppStore((s) => s.deleteGroup)
-  const addMemberToGroup = useAppStore((s) => s.addMemberToGroup)
-  const removeMemberFromGroup = useAppStore((s) => s.removeMemberFromGroup)
   const navigate = useNavigate()
   const [showAdd, setShowAdd] = useState(false)
   const [nameInput, setNameInput] = useState('')

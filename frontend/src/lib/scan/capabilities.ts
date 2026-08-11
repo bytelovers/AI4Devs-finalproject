@@ -143,6 +143,8 @@ export async function getEngines(): Promise<EngineInfo[]> {
     estimatedTime: '5-15s',
     accuracy: 'high',
     sizeLabel: florenceReady ? 'Cacheado' : '~400MB',
+    requiresDownload: !florenceReady,
+    precision: 'Alta',
   })
 
   engines.push({
@@ -155,6 +157,8 @@ export async function getEngines(): Promise<EngineInfo[]> {
     estimatedTime: '15-40s',
     accuracy: 'high',
     sizeLabel: nerReady ? 'Cacheado' : '~110MB',
+    requiresDownload: !nerReady,
+    precision: 'Media-Alta',
   })
 
   engines.push({
@@ -165,6 +169,7 @@ export async function getEngines(): Promise<EngineInfo[]> {
     estimatedTime: '8-20s',
     accuracy: 'medium',
     sizeLabel: '~5MB',
+    precision: 'Media',
   })
 
   engines.push({
@@ -177,6 +182,8 @@ export async function getEngines(): Promise<EngineInfo[]> {
     estimatedTime: '3-5s',
     accuracy: 'high-but-server',
     sizeLabel: '0MB',
+    requiresConnection: true,
+    precision: 'Alta',
   })
 
   return engines

@@ -80,7 +80,7 @@ export async function preprocessReceiptImage(
     }
 
     // 3. Equalización de histograma (estira el rango dinámico)
-    let working = gray
+    let working: Uint8ClampedArray = gray
     if (equalizeHistogram) {
       working = equalizeHistogramFn(gray)
     }
@@ -431,7 +431,7 @@ export async function preprocessMultiSectionReceipt(
         gray[j] = Math.max(0, Math.min(255, lum))
       }
 
-      let finalGray = gray
+      let finalGray: Uint8ClampedArray = gray
       if (adjustments.binarization) {
         finalGray = applyAdaptiveThreshold(gray, canvas.width, canvas.height)
       }
@@ -487,7 +487,7 @@ function loadImageElement(src: string): Promise<HTMLImageElement> {
     const img = new Image()
     img.crossOrigin = 'anonymous'
     img.onload = () => resolve(img)
-    img.onerror = (e) => reject(new Error('No se pudo cargar la imagen'))
+    img.onerror = () => reject(new Error('No se pudo cargar la imagen'))
     img.src = src
   })
 }

@@ -19,8 +19,6 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import {
-  User,
-  Settings as SettingsIcon,
   Percent,
   Database,
   Trash2,
@@ -28,7 +26,6 @@ import {
   ShieldCheck,
   Sparkles,
   Flag,
-  ChevronRight,
   Zap,
   Upload,
   Download,

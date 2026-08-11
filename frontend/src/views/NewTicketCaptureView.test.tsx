@@ -1,4 +1,3 @@
-import React from 'react'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
@@ -92,7 +91,7 @@ describe('NewTicketCaptureView Integration & State Machine', () => {
     )
 
     // Trigger photo upload / capture on CameraCapture
-    const uploadInput = screen.getByTestId ? screen.queryByTestId('file-upload-input') : null
+    const uploadInput = screen.queryByTestId('file-upload-input')
     if (uploadInput) {
       const file = new File(['(dummy)'], 'receipt.png', { type: 'image/png' })
       fireEvent.change(uploadInput, { target: { files: [file] } })
@@ -106,8 +105,6 @@ describe('NewTicketCaptureView Integration & State Machine', () => {
   it('executes preprocessor, worker batch execution, merger, and hybrid persistence on adjustment confirm', async () => {
     const draft = useAppStore.getState().addTicket({ title: 'Draft test' })
     useAppStore.getState().setDraftTicketId(draft.id)
-
-    const dummyDataUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
 
     render(
       <MemoryRouter>

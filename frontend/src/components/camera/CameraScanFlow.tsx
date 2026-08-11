@@ -10,15 +10,16 @@
  * Reuses the singleton Comlink worker pattern for the OCR pipeline.
  */
 
-import React, { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import * as Comlink from 'comlink'
 import { useNavigate } from 'react-router-dom'
 import { Loader2, AlertCircle, RefreshCw, CheckCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { CameraCapture } from './CameraCapture'
 import { preprocessReceiptImage } from '@/lib/scan'
+import { genId } from '@/lib/calc'
 import type { OCRWorkerType } from '@/workers/ocr.worker'
-import type { ScanResult } from '@/lib/scan/types'
+import type { ScanResult, ScanProgress } from '@/lib/scan/types'
 import { useAppStore } from '@/lib/store'
 
 type ScanPhase = 'capture' | 'scanning' | 'complete' | 'error'
@@ -93,7 +94,7 @@ export function CameraScanFlow({ onClose, onTicketCreated }: CameraScanFlowProps
             useMiniAgent: true,
             verboseLogs: false,
           },
-          Comlink.proxy((p) => {
+          Comlink.proxy((p: ScanProgress) => {
             if (abortRef.current) return
             setScanMessage(p.message)
             if (p.percent !== undefined) {
@@ -117,12 +118,15 @@ export function CameraScanFlow({ onClose, onTicketCreated }: CameraScanFlowProps
           title: result.merchant
             ? `Ticket - ${result.merchant}`
             : 'Scanned ticket',
-          merchant: result.merchant,
-          image: capturedImage,
+          merchant: result.merchant ?? undefined,
+          image: capturedImage ?? undefined,
           items: (result.items || []).map((item) => ({
+            id: genId(),
             name: item.name,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
+            mode: 'single' as const,
+            assignments: [],
           })),
           subtotal: result.subtotal ?? itemSum,
           taxRate: result.taxRate,

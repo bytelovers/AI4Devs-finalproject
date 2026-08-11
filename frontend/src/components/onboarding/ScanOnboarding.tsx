@@ -32,7 +32,7 @@ import {
 } from '@/lib/scan/capabilities'
 import type { EngineInfo } from '@/lib/scan/types'
 import type { DownloadSummary } from '@/lib/scan/download-tracker'
-import { formatBytes, formatSpeed, formatETA } from '@/lib/scan/download-tracker'
+import { formatBytes } from '@/lib/scan/download-tracker'
 
 // El estado de "modelo descargado" lo determina getEngines(): verifica la cache
 // real del dispositivo (pesos ONNX de Florence-2) y respeta el flag persistido.
@@ -300,7 +300,6 @@ export function ScanOnboarding({ open, onClose, onUseServer, onUseTesseract, onU
                         onClick={handleDownload}
                         className="w-full"
                         size="sm"
-                        disabled={stage === 'downloading'}
                       >
                         <Download className="h-4 w-4 mr-2" />
                         Descargar modelo
@@ -468,7 +467,7 @@ function DownloadProgressCard({
         <p className="font-medium text-foreground">
           {isVerifying
             ? 'Verificando modelo…'
-            : `Descargando ${download.filesCompleted + 1}/${download.filesTotal || '?'} · ${truncateFilename(download.currentFile)}`}
+            : `Descargando ${download.filesCompleted + 1}/${download.filesTotal || '?'} · ${truncateFilename(download.currentFile ?? '')}`}
         </p>
       </div>
 

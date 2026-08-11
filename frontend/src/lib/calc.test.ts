@@ -20,7 +20,7 @@ import {
   formatDateTime,
   AVATAR_COLORS,
 } from './calc'
-import type { Ticket, TicketItem, TicketDiscount, PersonShare } from './types'
+import type { Ticket, TicketItem } from './types'
 
 // ---------------------------------------------------------------------------
 // Helpers

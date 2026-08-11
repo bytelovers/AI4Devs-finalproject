@@ -15,7 +15,7 @@
  * Solo un modelo NER puede estar en RAM a la vez (gestionado por modelManager).
  */
 
-import type { ScanProgress, ProgressCallback } from './types'
+import type { ProgressCallback } from './types'
 import { modelManager } from './model-manager'
 
 export type NerModelType = 'general' | 'receipt'
@@ -101,7 +101,7 @@ export async function classifyWithNER(
   const modelId = `${spec.id}-${spec.modelId}`
 
   // Cargar modelo vía modelManager (gestiona dispose del anterior)
-  const loaded = await modelManager.load(modelId, async () => {
+  await modelManager.load(modelId, async () => {
     const transformers = await getTransformers()
     const { pipeline, env } = transformers
     env.allowLocalModels = false
@@ -155,7 +155,7 @@ export async function classifyWithNER(
       // Forzar recarga
       await modelManager.unloadCurrent()
       // Reintentar
-      const fresh = await modelManager.load(modelId, async () => {
+      await modelManager.load(modelId, async () => {
         const transformers = await getTransformers()
         const { pipeline, env } = transformers
         env.allowLocalModels = false

@@ -187,7 +187,7 @@ describe('Wizard Loaders — step loaders', () => {
       const itemId = draft.items[0].id
       useAppStore.getState().updateTicket(draftId, { participantIds: ['p1'] })
       useAppStore.getState().updateTicketItem(draftId, itemId, {
-        assignments: [{ personId: 'p1', share: 'full' }],
+        assignments: [{ personId: 'p1', weight: 1 }],
       })
     }
 

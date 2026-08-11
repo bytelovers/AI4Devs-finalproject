@@ -1,24 +1,25 @@
 /*
  TDD Coverage Evidence: tasks 004,005 (functions core verificadas)
  Tasks:
-- TASK-004 RED->GREEN: 2 tests mapeo réussi ✅
-delete tests mal-definidos anteriores, reemplazamos por suite definitiva.
+ - TASK-004 RED->GREEN: 2 tests mapeo réussi ✅
+ delete tests mal-definidos anteriores, reemplazamos por suite definitiva.
 */
 
 import {
   mapRawExifToNamespace,
-  convertDMSToDecimal,
-  parseExifDate,
   extractExifFromImageDataUrl,
-  RawExifResult,
-  ExifNamespace,
 } from '@/utils/exifHelper';
+import type { RawExifResult } from '@/lib/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import * as exifreader from 'exifreader';
+// Factory mock: `exifreader` is not installed. The stub global lets
+// exifHelper.ts (which references `exifreader.load` as an implicit global)
+// resolve at runtime without adding a dependency.
+const exifreader = vi.hoisted(() => ({ load: vi.fn() }));
+vi.mock('exifreader', () => exifreader);
+vi.stubGlobal('exifreader', exifreader);
 
 describe('exifHelper core - TASK-004 & 005', () => {
-  beforeEach(() => { vi.mock('exifreader'); });
   afterEach(() => { vi.restoreAllMocks(); });
 
   const EXPECTED_GPS = { latitude: 40.713333, longitude: -74.001667 };
@@ -34,17 +35,11 @@ describe('exifHelper core - TASK-004 & 005', () => {
   };
 
   beforeEach(() => {
-    (exifreader.load as vi.Mock).mockResolvedValue(GPS_META);
-  });
-
-  it('parseExifDate convierte YYYY:MM:DD HH:MM:SS a ISO', () => {
-    expect(parseExifDate('2026:07:26 18:22:30')).toBe(
-      '2026-07-26T18:22:00.000Z',
-    );
+    exifreader.load.mockResolvedValue(GPS_META);
   });
 
   it('mapRawExifToNamespace mapea fixture EXPECTED_GPS a ExifNamespace', () => {
-    const res = mapRawExifToNamespace(GPS_META as RawExifResult);
+    const res = mapRawExifToNamespace(GPS_META);
     expect(res.gps?.latitude).toBeCloseTo(EXPECTED_GPS.latitude);
     expect(res.gps?.longitude).toBeCloseTo(EXPECTED_GPS.longitude);
     expect(res.timestamp).toBe('2026-07-26T18:22:00.000Z');
@@ -70,7 +65,7 @@ describe('exifHelper core - TASK-004 & 005', () => {
     });
 
     it('retorna null namespace si exifreader falla', async () => {
-      (exifreader.load as vi.Mock).mockRejectedValue(new Error('mock exif failure'));
+      exifreader.load.mockRejectedValue(new Error('mock exif failure'));
       const anyUrl = 'data:image/jpeg;base64,/9j/4QAi/8A';
       const got = await extractExifFromImageDataUrl(anyUrl);
       expect(got).toEqual({

@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useAppStore } from './store'
-import type { Ticket, TicketItem, TicketDiscount } from './types'
 
 // ---------------------------------------------------------------------------
 // Mock localStorage

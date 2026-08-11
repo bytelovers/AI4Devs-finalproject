@@ -84,6 +84,12 @@ export interface EngineInfo {
   estimatedTime: string
   accuracy: 'high' | 'medium' | 'high-but-server'
   sizeLabel?: string
+  /** Engine requires a network connection to run. */
+  requiresConnection?: boolean
+  /** Engine requires a one-time model download before first use. */
+  requiresDownload?: boolean
+  /** Human-readable precision label (e.g. "Alta", "Media-Alta", "Media"). */
+  precision?: string
 }
 
 /** Bounding box in normalized coordinates (0.0 to 1.0) relative to image dimensions */

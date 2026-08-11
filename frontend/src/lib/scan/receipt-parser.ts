@@ -9,8 +9,6 @@
  *   - Detección de merchant con filtrado de ruido
  */
 
-import type { ScanResult } from './types'
-
 export interface ParsedReceipt {
   items: Array<{
     name: string

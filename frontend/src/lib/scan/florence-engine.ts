@@ -12,7 +12,7 @@
  * Para receipts usamos <OCR> y luego un parser heurístico español.
  */
 
-import type { ScanResult, ScanProgress, ProgressCallback } from './types'
+import type { ScanResult, ProgressCallback } from './types'
 import { preprocessReceiptImage } from './preprocessor'
 import { DownloadTracker } from './download-tracker'
 import { parseReceiptText } from './receipt-parser'

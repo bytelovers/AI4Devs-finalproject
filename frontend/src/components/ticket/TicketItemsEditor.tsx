@@ -29,7 +29,6 @@ import {
   Tag,
   Minus,
 } from 'lucide-react'
-import { useState } from 'react'
 import { cn } from '@/lib/utils'
 
 interface TicketItemsEditorProps {

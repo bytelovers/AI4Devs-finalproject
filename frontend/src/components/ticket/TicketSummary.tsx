@@ -9,7 +9,6 @@ import {
   verifyCuadre,
   calcTicketTotal,
   itemsFullyAssigned,
-  calcTaxAmount,
 } from '@/lib/calc'
 import type { Ticket } from '@/lib/types'
 import { Avatar } from '@/components/ui/Avatar'
@@ -19,7 +18,6 @@ import {
   CheckCircle2,
   AlertTriangle,
   Share2,
-  Download,
   RotateCcw,
   Trash2,
   Receipt,

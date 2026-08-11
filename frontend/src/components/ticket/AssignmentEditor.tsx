@@ -2,7 +2,7 @@
 
 import { useAppStore } from '@/lib/store'
 import { formatEUR, itemLineTotal } from '@/lib/calc'
-import type { Ticket, TicketItem, ID, AssignmentMode } from '@/lib/types'
+import type { Ticket, TicketItem, ID, AssignmentMode, Person } from '@/lib/types'
 import { Avatar } from '@/components/ui/Avatar'
 import { PeopleGroupsManager } from '@/components/people/PeopleGroupsManager'
 import { Card } from '@/components/ui/card'
@@ -257,7 +257,7 @@ function ItemAssignmentRow({
   onEdit,
 }: {
   item: TicketItem
-  participants: { id: string; name: string; color: string; initials: string }[]
+  participants: Person[]
   onEdit: () => void
 }) {
   const total = itemLineTotal(item)
@@ -374,7 +374,7 @@ function ItemAssignmentSheet({
   onClose,
 }: {
   item: TicketItem
-  participants: { id: string; name: string; color: string; initials: string }[]
+  participants: Person[]
   groups: { id: string; name: string; color: string; memberIds: string[] }[]
   onChange: (patch: Partial<TicketItem>) => void
   onClose: () => void
