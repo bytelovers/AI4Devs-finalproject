@@ -43,11 +43,16 @@ jobs:
 
       - name: Diagnose Vercel project access (non-blocking)
         run: |
-          echo "== GET /v9/projects (scope check) =="
-          curl -sS -o /tmp/vercel-projects.json -w "HTTP %{http_code}\n" \
+          echo "== GET /v9/projects/{PROJECT_ID} (no teamId) =="
+          curl -sS -o /tmp/project1.json -w "HTTP %{http_code}\n" \
             -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
-            "https://api.vercel.com/v9/projects"
-          head -c 400 /tmp/vercel-projects.json; echo
+            "https://api.vercel.com/v9/projects/${{ secrets.VERCEL_PROJECT_ID }}"
+          head -c 200 /tmp/project1.json; echo
+          echo "== GET /v9/projects/{PROJECT_ID}?teamId={ORG_ID} =="
+          curl -sS -o /tmp/project2.json -w "HTTP %{http_code}\n" \
+            -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
+            "https://api.vercel.com/v9/projects/${{ secrets.VERCEL_PROJECT_ID }}?teamId=${{ secrets.VERCEL_ORG_ID }}"
+          head -c 200 /tmp/project2.json; echo
 
       - name: Pull Vercel environment information
         run: npx vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
