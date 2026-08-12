@@ -69,7 +69,7 @@ jobs:
           ALIAS="staging-${GITHUB_REF_NAME//\//-}"
           OUTPUT=$(npx --yes netlify-cli deploy --alias="$ALIAS" --dir=dist --json --message "staging ${{ github.ref_name }} from GitHub Actions (${{ github.sha }})" 2>&1)
           echo "$OUTPUT"
-          JSON=$(echo "$OUTPUT" | grep -m1 '^{' || echo "{}")
+          JSON=$(echo "$OUTPUT" | sed -n '/^{/,/^}/p' | head -50)
           echo "netlify_url=$(echo "$JSON" | jq -r '.deploy_url // empty')" >> "$GITHUB_OUTPUT"
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
