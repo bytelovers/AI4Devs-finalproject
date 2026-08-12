@@ -55,10 +55,10 @@ jobs:
           head -c 200 /tmp/project2.json; echo
 
       - name: Pull Vercel environment information
-        run: npx vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }} --debug 2>&1 | grep -E "→|←|GET|POST|Error" | head -40 || true
+        run: npx vercel pull --yes --environment=production --scope=bytelovers-projects --token=${{ secrets.VERCEL_TOKEN }} 2>&1 | tail -30
 
       - name: Build project artifacts
-        run: npx vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: npx vercel build --prod --scope=bytelovers-projects --token=${{ secrets.VERCEL_TOKEN }} 2>&1 | tail -30
 
       - name: Deploy project artifacts to Vercel
-        run: npx vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: npx vercel deploy --prebuilt --prod --scope=bytelovers-projects --token=${{ secrets.VERCEL_TOKEN }} 2>&1 | tail -30
