@@ -16,49 +16,32 @@ jobs:
   deploy:
     name: Deploy frontend to Vercel
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
-    env:
-      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 11.10.0
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-          cache-dependency-path: frontend/pnpm-lock.yaml
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
       - name: Diagnose Vercel project access (non-blocking)
         run: |
-          echo "== GET /v9/projects/{PROJECT_ID} (no teamId) =="
-          curl -sS -o /tmp/project1.json -w "HTTP %{http_code}\n" \
-            -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
-            "https://api.vercel.com/v9/projects/${{ secrets.VERCEL_PROJECT_ID }}"
-          head -c 200 /tmp/project1.json; echo
           echo "== GET /v9/projects/{PROJECT_ID}?teamId={ORG_ID} =="
-          curl -sS -o /tmp/project2.json -w "HTTP %{http_code}\n" \
+          curl -sS -o /tmp/project.json -w "HTTP %{http_code}\n" \
             -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
             "https://api.vercel.com/v9/projects/${{ secrets.VERCEL_PROJECT_ID }}?teamId=${{ secrets.VERCEL_ORG_ID }}"
-          head -c 200 /tmp/project2.json; echo
+          head -c 200 /tmp/project.json; echo
 
-      - name: Pull Vercel environment information
-        run: npx vercel pull --yes --environment=production --scope=bytelovers-projects --token=${{ secrets.VERCEL_TOKEN }} 2>&1 | tail -30
+      - name: Deploy to Vercel (API mode)
+        id: vercel
+        uses: amondnet/vercel-action@v42
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          experimental-api: true
+          target: production
+          root-directory: frontend
+          github-comment: false
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build project artifacts
-        run: npx vercel build --prod --scope=bytelovers-projects --token=${{ secrets.VERCEL_TOKEN }} 2>&1 | tail -30
-
-      - name: Deploy project artifacts to Vercel
-        run: npx vercel deploy --prebuilt --prod --scope=bytelovers-projects --token=${{ secrets.VERCEL_TOKEN }} 2>&1 | tail -30
+      - name: Show deployment info
+        run: |
+          echo "Preview URL: ${{ steps.vercel.outputs.preview-url }}"
+          echo "Deployment ID: ${{ steps.vercel.outputs.deployment-id }}"
