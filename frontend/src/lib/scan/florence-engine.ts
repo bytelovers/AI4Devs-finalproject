@@ -125,10 +125,14 @@ export async function scanWithFlorence(
   })
 
   // 1. Preprocesar imagen con canvas (rápido y sin dependencias)
+  // La imagen ya viene preprocesada desde el main thread (CameraScanFlow).
+  // Florence-2 es un VLM: re-aplicar equalize/contraste agresivos aquí degrada
+  // la imagen y produce texto vacío. Solo reescalar y dejar el resto intacto.
   const preprocessed = await preprocessReceiptImage(imageDataUrl, {
     maxWidth: 1280,
-    equalizeHistogram: true,
-    contrast: 1.2,
+    equalizeHistogram: false,
+    contrast: 1.0,
+    denoise: false,
   })
 
   onProgress?.({
