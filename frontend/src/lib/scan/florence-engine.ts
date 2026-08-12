@@ -134,8 +134,6 @@ export async function scanWithFlorence(
     contrast: 1.0,
     denoise: false,
   })
-  // TODO(diagnostico): temporal — quitar tras confirmar el fix
-  console.log('[florence] preprocessed length:', preprocessed.length, 'prefix:', preprocessed.slice(0, 40))
 
   onProgress?.({
     phase: 'loading-model',
@@ -154,8 +152,6 @@ export async function scanWithFlorence(
   const transformers = await getTransformers()
   const { RawImage } = transformers
   const image = await RawImage.fromURL(preprocessed)
-  // TODO(diagnostico): temporal — quitar tras confirmar el fix
-  console.log('[florence] image decoded:', image?.width, 'x', image?.height)
 
   // 4. Preprocesar inputs con el task prompt <OCR>
   const inputs = await processor(image, '<OCR>')
@@ -171,9 +167,6 @@ export async function scanWithFlorence(
     skip_special_tokens: true,
   })
   const rawText: string = decoded?.[0] ?? ''
-  // TODO(diagnostico): temporal — quitar tras confirmar el fix
-  console.log('[florence] rawText:', JSON.stringify(rawText.slice(0, 300)))
-  console.log('[florence] decoded length:', decoded?.length, 'output shape:', JSON.stringify(output)?.slice(0, 200))
 
   onProgress?.({
     phase: 'parsing',
