@@ -1,0 +1,83 @@
+name: Release Staging
+
+on:
+  push:
+    branches:
+      - 'release/**'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Release branch to stage (e.g. release/v0.2.0)'
+        required: false
+        default: ''
+
+concurrency:
+  group: release-staging-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-stage:
+    name: Test and stage release
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.10.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Build (typecheck + bundling)
+        run: pnpm build
+
+      - name: Test
+        run: pnpm test
+
+      - name: Deploy staging to Vercel (preview)
+        id: vercel
+        uses: amondnet/vercel-action@v42
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          experimental-api: true
+          target: preview
+          root-directory: frontend
+          github-comment: false
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Deploy staging to Netlify (alias)
+        id: netlify
+        run: |
+          ALIAS="staging-${GITHUB_REF_NAME//\//-}"
+          OUTPUT=$(npx --yes netlify-cli deploy --alias="$ALIAS" --dir=dist --json --message "staging ${{ github.ref_name }} from GitHub Actions (${{ github.sha }})" 2>&1)
+          echo "$OUTPUT"
+          echo "netlify_url=$(echo "$OUTPUT" | jq -r '.deploy_url // empty')" >> "$GITHUB_OUTPUT"
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+
+      - name: Show staging URLs
+        run: |
+          echo "============================================"
+          echo "STAGING URLs for ${{ github.ref_name }}"
+          echo "  Vercel:  ${{ steps.vercel.outputs.preview-url }}"
+          echo "  Netlify: ${{ steps.netlify.outputs.netlify_url }}"
+          echo "============================================"
