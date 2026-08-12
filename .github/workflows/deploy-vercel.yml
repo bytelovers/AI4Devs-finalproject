@@ -20,14 +20,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Diagnose Vercel project access (non-blocking)
-        run: |
-          echo "== GET /v9/projects/{PROJECT_ID}?teamId={ORG_ID} =="
-          curl -sS -o /tmp/project.json -w "HTTP %{http_code}\n" \
-            -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
-            "https://api.vercel.com/v9/projects/${{ secrets.VERCEL_PROJECT_ID }}?teamId=${{ secrets.VERCEL_ORG_ID }}"
-          head -c 200 /tmp/project.json; echo
-
       - name: Deploy to Vercel (API mode)
         id: vercel
         uses: amondnet/vercel-action@v42
