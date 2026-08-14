@@ -60,7 +60,10 @@ const api = {
         forceTesseract,
         forceTesseractNer,
         useMiniAgent: options.useMiniAgent ?? false,
-        engineTimeoutMs: 120_000,
+        // TODO(experimento florence): OCR_WITH_REGION genera más tokens (loc_),
+        // en WASM puede superar 120s. Subido temporalmente para el experimento.
+        engineTimeoutMs: 300_000,
+        verboseLogs: options.verboseLogs ?? false,
         onProgress,
       }
     )
@@ -108,7 +111,10 @@ const api = {
           forceTesseract,
           forceTesseractNer,
           useMiniAgent: options.useMiniAgent ?? false,
-          engineTimeoutMs: 120_000,
+          // TODO(experimento florence): OCR_WITH_REGION genera más tokens (loc_),
+          // en WASM puede superar 120s. Subido temporalmente para el experimento.
+          engineTimeoutMs: 300_000,
+          verboseLogs: options.verboseLogs ?? false,
           onProgress: typeof onProgress === 'function' ? (p) => {
             try {
               onProgress(p)

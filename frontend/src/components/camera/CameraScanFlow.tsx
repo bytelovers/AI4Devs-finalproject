@@ -64,6 +64,7 @@ export function CameraScanFlow({ onClose, onTicketCreated }: CameraScanFlowProps
 
   const addTicket = useAppStore((s) => s.addTicket)
   const preferredEngine = useAppStore((s) => s.settings.preferredEngine)
+  const verboseLogs = useAppStore((s) => s.featureFlags.verboseLogs)
 
   const handleCapture = useCallback(
     async (dataUrl: string) => {
@@ -92,7 +93,7 @@ export function CameraScanFlow({ onClose, onTicketCreated }: CameraScanFlowProps
           {
             preferredEngine: preferredEngine as 'tesseract' | 'tesseract-ner' | 'florence2',
             useMiniAgent: true,
-            verboseLogs: false,
+            verboseLogs,
           },
           Comlink.proxy((p: ScanProgress) => {
             if (abortRef.current) return

@@ -61,6 +61,8 @@ export interface ScanOptions {
   noFallback?: boolean
   /** Timeout por motor en ms. Default 60s (NER necesita más tiempo). */
   engineTimeoutMs?: number
+  /** Logs detallados de diagnóstico en consola. Default: false. */
+  verboseLogs?: boolean
 }
 
 /**
@@ -78,19 +80,20 @@ export async function scanTicket(
     onProgress,
     noFallback = false,
     engineTimeoutMs = 60_000,
+    verboseLogs = false,
   } = options
 
   // Forzar Tesseract solo
   if (forceTesseract) {
-    return await scanWithTesseract(input.imageDataUrl, onProgress)
+    return await scanWithTesseract(input.imageDataUrl, onProgress, verboseLogs)
   }
 
   // Forzar Tesseract + NER
   if (forceTesseractNer) {
     if (useMiniAgent) {
-      return await scanWithMiniAgent(input.imageDataUrl, onProgress, nerModelType)
+      return await scanWithMiniAgent(input.imageDataUrl, onProgress, nerModelType, verboseLogs)
     }
-    return await scanWithTesseractNer(input.imageDataUrl, onProgress, nerModelType)
+    return await scanWithTesseractNer(input.imageDataUrl, onProgress, nerModelType, undefined, verboseLogs)
   }
 
   // Determinar cadena de motores a probar
@@ -126,7 +129,8 @@ export async function scanTicket(
         engine,
         input.imageDataUrl,
         onProgress,
-        engineTimeoutMs
+        engineTimeoutMs,
+        verboseLogs
       )
       return result
     } catch (err) {
@@ -151,10 +155,11 @@ export async function scanTicket(
 async function scanWithMiniAgent(
   imageDataUrl: string,
   onProgress?: ProgressCallback,
-  fallbackModel: NerModelType = 'general'
+  fallbackModel: NerModelType = 'general',
+  verboseLogs = false
 ): Promise<ScanResult> {
   // 1. Tesseract rápido para extraer texto
-  const tesseractResult = await scanWithTesseract(imageDataUrl, onProgress)
+  const tesseractResult = await scanWithTesseract(imageDataUrl, onProgress, verboseLogs)
   const rawText = tesseractResult.rawText ?? ''
 
   if (!rawText.trim()) {
@@ -163,7 +168,9 @@ async function scanWithMiniAgent(
 
   // 2. Mini-agente clasifica
   const intent = classifyIntent(rawText)
-  console.log('[mini-agent] Intent:', intent)
+  if (verboseLogs) {
+    console.log('[mini-agent] Intent:', intent)
+  }
 
   onProgress?.({
     phase: 'parsing',
@@ -175,21 +182,22 @@ async function scanWithMiniAgent(
 
   // 4. Ejecutar NER con el modelo seleccionado, reutilizando el Tesseract ya
   //    ejecutado en el paso 1 para no hacer doble OCR sobre el mismo recorte.
-  return await scanWithTesseractNer(imageDataUrl, onProgress, modelToUse, tesseractResult)
+  return await scanWithTesseractNer(imageDataUrl, onProgress, modelToUse, tesseractResult, verboseLogs)
 }
 
 async function runEngineWithTimeout(
   engine: ScanEngineName,
   imageDataUrl: string,
   onProgress: ProgressCallback | undefined,
-  timeoutMs: number
+  timeoutMs: number,
+  verboseLogs = false
 ): Promise<ScanResult> {
   return new Promise<ScanResult>((resolve, reject) => {
     const timer = setTimeout(() => {
       reject(new Error(`Timeout: ${engine} tardó más de ${timeoutMs / 1000}s`))
     }, timeoutMs)
 
-    runEngine(engine, imageDataUrl, onProgress)
+    runEngine(engine, imageDataUrl, onProgress, verboseLogs)
       .then((result) => {
         clearTimeout(timer)
         resolve(result)
@@ -204,15 +212,16 @@ async function runEngineWithTimeout(
 async function runEngine(
   engine: ScanEngineName,
   imageDataUrl: string,
-  onProgress?: ProgressCallback
+  onProgress?: ProgressCallback,
+  verboseLogs = false
 ): Promise<ScanResult> {
   switch (engine) {
     case 'florence2':
-      return await scanWithFlorence(imageDataUrl, onProgress)
+      return await scanWithFlorence(imageDataUrl, onProgress, verboseLogs)
     case 'tesseract':
-      return await scanWithTesseract(imageDataUrl, onProgress)
+      return await scanWithTesseract(imageDataUrl, onProgress, verboseLogs)
     case 'tesseract-ner':
-      return await scanWithTesseractNer(imageDataUrl, onProgress)
+      return await scanWithTesseractNer(imageDataUrl, onProgress, undefined, undefined, verboseLogs)
     default:
       // 'server' is excluded from this build - fall through to error
       throw new Error(`Motor "${engine}" no está disponible en esta versión`)
