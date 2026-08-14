@@ -327,12 +327,21 @@ export function parseReceiptText(text: string): ParsedReceipt {
     if (validPrices.length >= 3) {
       // El último número con decimales es el Importe Total
       lineTotal = parseSpanishAmount(validPrices[validPrices.length - 1][1])
-      // El penúltimo es el Precio Unitario
-      unitPrice = parseSpanishAmount(validPrices[validPrices.length - 2][1])
-      // El antepenúltimo representa la Cantidad (ej: 4,00 o 2,00); puede ser decimal (peso: 1,45)
-      const qtyVal = parseSpanishAmount(validPrices[validPrices.length - 3][1])
-      if (qtyVal > 0 && qtyVal <= 500) {
-        quantity = Math.abs(qtyVal - Math.round(qtyVal)) < 0.05 ? Math.round(qtyVal) : round2(qtyVal)
+      if (parsedQty !== null) {
+        // Con cantidad explícita al inicio ("1 Santa Monica 10.46 0.0000 10.80"):
+        // el primer precio es el PRECIO UNITARIO del item y los del medio son
+        // descuento %/ruido. quantity ya viene del inicio de la línea.
+        quantity = parsedQty
+        unitPrice = parseSpanishAmount(validPrices[0][1])
+      } else {
+        // Sin cantidad explícita: [cantidad, unitPrice, total]
+        // El penúltimo es el Precio Unitario
+        unitPrice = parseSpanishAmount(validPrices[validPrices.length - 2][1])
+        // El antepenúltimo representa la Cantidad (ej: 4,00 o 2,00); puede ser decimal (peso: 1,45)
+        const qtyVal = parseSpanishAmount(validPrices[validPrices.length - 3][1])
+        if (qtyVal > 0 && qtyVal <= 500) {
+          quantity = Math.abs(qtyVal - Math.round(qtyVal)) < 0.05 ? Math.round(qtyVal) : round2(qtyVal)
+        }
       }
     } else if (validPrices.length === 2) {
       const p1 = parseSpanishAmount(validPrices[0][1])

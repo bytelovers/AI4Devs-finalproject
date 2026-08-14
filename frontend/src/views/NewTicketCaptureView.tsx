@@ -40,6 +40,7 @@ export function NewTicketCaptureView() {
   const recalcTicket = useAppStore((s) => s.recalcTicket)
   const addTicketItem = useAppStore((s) => s.addTicketItem)
   const preferredEngine = useAppStore((s) => s.settings.preferredEngine)
+  const verboseLogs = useAppStore((s) => s.featureFlags.verboseLogs)
   const navigate = useNavigate()
 
   const [phase, setPhase] = useState<CapturePhase>('capture')
@@ -107,7 +108,7 @@ export function NewTicketCaptureView() {
             {
               preferredEngine: preferredEngine as any,
               useMiniAgent: true,
-              verboseLogs: false,
+              verboseLogs,
             },
             Comlink.proxy((p: any) => {
               if (abortRef.current) return
@@ -124,7 +125,7 @@ export function NewTicketCaptureView() {
             {
               preferredEngine: preferredEngine as any,
               useMiniAgent: true,
-              verboseLogs: false,
+              verboseLogs,
             },
             Comlink.proxy((p: any) => {
               if (abortRef.current) return

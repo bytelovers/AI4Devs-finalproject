@@ -53,7 +53,8 @@ async function getWorker(onProgress?: ProgressCallback) {
  */
 export async function scanWithTesseract(
   imageDataUrl: string,
-  onProgress?: ProgressCallback
+  onProgress?: ProgressCallback,
+  verboseLogs = false
 ): Promise<ScanResult> {
   onProgress?.({
     phase: 'preprocessing',
@@ -81,8 +82,10 @@ export async function scanWithTesseract(
   const result = await worker.recognize(preprocessed)
   const rawText: string = result?.data?.text ?? ''
 
-  // Log del texto crudo para debug
-  console.log('[tesseract] OCR raw output:\n', rawText)
+  // Log del texto crudo para debug (solo si verboseLogs activo)
+  if (verboseLogs) {
+    console.log('[tesseract] OCR raw output:\n', rawText)
+  }
 
   onProgress?.({
     phase: 'parsing',
@@ -91,12 +94,14 @@ export async function scanWithTesseract(
 
   // 4. Parsear
   const parsed = parseReceiptText(rawText)
-  console.log('[tesseract] Parsed result:', {
-    items: parsed.items,
-    discounts: parsed.discounts,
-    merchant: parsed.merchant,
-    total: parsed.total,
-  })
+  if (verboseLogs) {
+    console.log('[tesseract] Parsed result:', {
+      items: parsed.items,
+      discounts: parsed.discounts,
+      merchant: parsed.merchant,
+      total: parsed.total,
+    })
+  }
 
   onProgress?.({
     phase: 'done',

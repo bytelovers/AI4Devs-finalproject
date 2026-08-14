@@ -32,10 +32,11 @@ export async function scanWithTesseractNer(
   imageDataUrl: string,
   onProgress?: ProgressCallback,
   nerModelType: NerModelType = 'general',
-  precomputedTesseract?: ScanResult
+  precomputedTesseract?: ScanResult,
+  verboseLogs = false
 ): Promise<ScanResult> {
   // 1. Ejecutar Tesseract para extraer texto crudo (o reutilizar el del mini-agente)
-  const tesseractResult = precomputedTesseract ?? (await scanWithTesseract(imageDataUrl, onProgress))
+  const tesseractResult = precomputedTesseract ?? (await scanWithTesseract(imageDataUrl, onProgress, verboseLogs))
   const rawText = tesseractResult.rawText ?? ''
 
   if (!rawText.trim()) {

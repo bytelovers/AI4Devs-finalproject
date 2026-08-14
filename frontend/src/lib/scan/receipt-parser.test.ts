@@ -58,6 +58,25 @@ describe('parseReceiptText baseline', () => {
     // La cantidad explícita "4" al inicio se respeta (antes se infería 2 de 45,20/22,80)
     expect(firstItem('ENTRECOTTE 4 22,80 45,20')).toMatchObject({ quantity: 4, unitPrice: 22.8 })
   })
+
+  it('parses unit price as first value when explicit quantity (La Maquinista format)', () => {
+    // Ticket real: "1 Santa Monica 10.46 0.0000 10.80" = [cantidad, unitPrice, dto%, total]
+    // Con cantidad explícita al inicio, el primer precio es el unitPrice del item.
+    expect(firstItem('1 Santa Monica 10.46 0.0000 10.80')).toMatchObject({
+      name: 'Santa Monica',
+      quantity: 1,
+      unitPrice: 10.46,
+    })
+  })
+
+  it('parses unit price as first value with multi-qty (2 Pepsi Max 3.30 0.300 6.60)', () => {
+    // "2 Pepsi Max Refill 3.30 0.300 6.60" = [cantidad=2, unitPrice=3.30, dto%, total=6.60]
+    expect(firstItem('2 Pepsi Max Refill 3.30 0.300 6.60')).toMatchObject({
+      name: 'Pepsi Max Refill',
+      quantity: 2,
+      unitPrice: 3.3,
+    })
+  })
 })
 
 describe('parseReceiptText quantity detection', () => {
