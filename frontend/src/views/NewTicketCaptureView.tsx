@@ -14,7 +14,7 @@ import { preprocessMultiSectionReceipt } from '@/lib/scan/preprocessor'
 import { mergeMultiSectionOcrResults } from '@/lib/scan/multiSectionMerger'
 import type { OCRWorkerType } from '@/workers/ocr.worker'
 import type { ImageAdjustmentOptions, SectionOcrPayload } from '@/lib/scan/types'
-import type { ScanMetadata } from '@/lib/types'
+import type { CapturedImage, ExifNamespace, ScanMetadata } from '@/lib/types'
 import { Loader2, AlertCircle, RefreshCw, Upload, Sparkles, CheckCircle } from 'lucide-react'
 
 // Singleton Comlink worker proxy using Vite's ?worker import
@@ -45,6 +45,7 @@ export function NewTicketCaptureView() {
 
   const [phase, setPhase] = useState<CapturePhase>('capture')
   const [capturedImage, setCapturedImage] = useState<string | null>(null)
+  const [capturedExif, setCapturedExif] = useState<ExifNamespace | null>(null)
   const [scanProgress, setScanProgress] = useState(0)
   const [scanMessage, setScanMessage] = useState('')
   const [scanError, setScanError] = useState<string | null>(null)
@@ -70,11 +71,31 @@ export function NewTicketCaptureView() {
     navigate('/')
   }, [draft, deleteTicket, clearDraftTicketId, navigate])
 
-  // Initial Photo Capture -> Transitions to 'adjust' phase
-  const handlePhotoCaptured = useCallback((imageDataUrl: string) => {
-    setCapturedImage(imageDataUrl)
-    setPhase('adjust')
-  }, [])
+  // Initial Photo Capture -> Transitions to 'adjust' phase.
+  // EXIF viaja en CapturedImage (REQ-EXIF-06) pero NO se persiste en el store.
+  const handlePhotoCaptured = useCallback(
+    (img: CapturedImage) => {
+      setCapturedImage(img.dataUrl)
+      setCapturedExif(img.exif)
+      // REQ-EXIF-08: verbose logs de éxito/fallo de extracción.
+      if (verboseLogs) {
+        const gps = img.exif.gps
+          ? `GPS ${img.exif.gps.latitude.toFixed(6)}, ${img.exif.gps.longitude.toFixed(6)}`
+          : 'sin GPS'
+        const device = img.exif.device
+          ? `${img.exif.device.make ?? '?'} ${img.exif.device.model ?? ''}`.trim()
+          : 'sin device'
+        const ts = img.exif.timestamp ?? 'sin timestamp'
+        const isNull =
+          !img.exif.gps && !img.exif.timestamp && !img.exif.device && img.exif.orientation == null
+        console.log(
+          `[EXIF] extracción ${isNull ? 'fallida/nula' : 'OK'}: ${gps} | ${device} | ${ts}`
+        )
+      }
+      setPhase('adjust')
+    },
+    [verboseLogs]
+  )
 
   // Confirm adjustments & initiate OCR scanning pipeline
   const handleConfirmAdjust = useCallback(
@@ -86,9 +107,16 @@ export function NewTicketCaptureView() {
       abortRef.current = false
 
       try {
-        // Step 1: Save captured image to draft
+        // Step 1: Save captured image to draft.
+        // REQ-EXIF-06 (D3): el EXIF viaja hasta el límite de persistencia pero
+        // updateTicket NUNCA lo recibe — Ticket.metadata no se escribe (RGPD).
         if (draftTicketId) {
           updateTicket(draftTicketId, { image: imageDataUrl })
+        }
+        if (verboseLogs && capturedExif) {
+          console.log(
+            '[EXIF] descartado en persistencia: updateTicket sin exif (RGPD strict)'
+          )
         }
 
         // Step 2: Multi-section canvas preprocessing pipeline
@@ -217,11 +245,12 @@ export function NewTicketCaptureView() {
         setPhase('error')
       }
     },
-    [draftTicketId, updateTicket, recalcTicket, preferredEngine]
+    [draftTicketId, updateTicket, recalcTicket, preferredEngine, verboseLogs, capturedExif]
   )
 
   const handleRetakeAdjust = useCallback(() => {
     setCapturedImage(null)
+    setCapturedExif(null)
     setPhase('capture')
   }, [])
 
@@ -318,6 +347,7 @@ export function NewTicketCaptureView() {
           subtitle="No se pudo procesar la imagen"
           back={() => {
             setCapturedImage(null)
+            setCapturedExif(null)
             setPhase('capture')
             setScanError(null)
           }}
@@ -332,6 +362,7 @@ export function NewTicketCaptureView() {
               variant="outline"
               onClick={() => {
                 setCapturedImage(null)
+                setCapturedExif(null)
                 setPhase('capture')
                 setScanError(null)
               }}
