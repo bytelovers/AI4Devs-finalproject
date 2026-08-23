@@ -70,17 +70,32 @@ export type ExtraDistributionMode = 'proportional' | 'equal'
 export type TicketStatus = 'draft' | 'balanced' | 'closed'
 
 /**
- * EXIF Metadata mapping result.
+ * EXIF Metadata mapping result — INTERFACE CONTRACT (D8): lat/lon at root
+ * level as signed decimals (exifr already converts DMS to decimal internally).
+ * `extractExifFromFile` is the only adaptation point that flattens exifr's
+ * nested `raw.gps` into this root-level shape. Consumers MUST NOT depend on
+ * exifr's internal format.
  */
 export interface RawExifResult {
-  GPSLatitude?: number[];
-  GPSLongitude?: number[];
-  GPSLatitudeRef?: string;
-  GPSLongitudeRef?: string;
-  DateTimeOriginal?: string;
+  /** Latitude in signed decimal degrees (root-level contract, D8). */
+  latitude?: number;
+  /** Longitude in signed decimal degrees (root-level contract, D8). */
+  longitude?: number;
+  /** Capture timestamp. `Date` when exifr `reviveValues` is active, raw EXIF string otherwise. */
+  DateTimeOriginal?: string | Date;
   Make?: string;
   Model?: string;
   Orientation?: number;
+}
+
+/**
+ * Captured image: compressed dataUrl + EXIF extracted from the ORIGINAL File
+ * (pre-compress). EXIF travels through the capture pipeline but is discarded
+ * at the persistence boundary (`updateTicket` never receives it).
+ */
+export interface CapturedImage {
+  dataUrl: string;
+  exif: ExifNamespace;
 }
 
 /**

@@ -1,85 +1,139 @@
 /*
- TDD Coverage Evidence: tasks 004,005 (functions core verificadas)
- Tasks:
- - TASK-004 RED->GREEN: 2 tests mapeo réussi ✅
- delete tests mal-definidos anteriores, reemplazamos por suite definitiva.
-*/
+ * Tests EXIF helper: extraction with exifr (dynamic import) and mapping to
+ * ExifNamespace under the D8 root-level lat/lon contract.
+ *
+ * TDD: tests written FIRST (RED) for sdd change exif-metadata-mapping
+ * (REQ-EXIF-01..10, design decisions D1-D8).
+ */
 
 import {
   mapRawExifToNamespace,
-  extractExifFromImageDataUrl,
+  extractExifFromFile,
 } from '@/utils/exifHelper';
-import type { RawExifResult } from '@/lib/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Factory mock: `exifreader` is not installed. The stub global lets
-// exifHelper.ts (which references `exifreader.load` as an implicit global)
-// resolve at runtime without adding a dependency.
-const exifreader = vi.hoisted(() => ({ load: vi.fn() }));
-vi.mock('exifreader', () => exifreader);
-vi.stubGlobal('exifreader', exifreader);
+// Mock exifr: `extractExifFromFile` uses `await import('exifr')` and calls
+// `default.parse(file, options)`. The mock exposes the same surface.
+const exifr = vi.hoisted(() => ({ default: { parse: vi.fn() } }));
+vi.mock('exifr', () => exifr);
 
-describe('exifHelper core - TASK-004 & 005', () => {
-  afterEach(() => { vi.restoreAllMocks(); });
+const EMPTY_NAMESPACE = {
+  gps: null,
+  timestamp: null,
+  device: null,
+  orientation: null,
+};
 
-  const EXPECTED_GPS = { latitude: 40.713333, longitude: -74.001667 };
-  const GPS_META: RawExifResult = {
-    GPSLatitude: [40, 42, 48],
-    GPSLatitudeRef: 'N',
-    GPSLongitude: [74, 0, 6],
-    GPSLongitudeRef: 'W',
-    DateTimeOriginal: '2026:07:26 18:22:30',
+describe('exifHelper — exifr extraction (REQ-EXIF-01/04/05/09)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const GPS_DECIMAL = { latitude: 40.713333, longitude: -74.001667 };
+
+  // Real exifr 7.x merged output (verificado en apply): GPS a nivel RAÍZ
+  // (latitude/longitude decimal signado), DateTimeOriginal revivido a Date,
+  // Orientation como entero con translateValues:false. `extractExifFromFile`
+  // es el único punto de adaptación hacia el contrato raíz (D8).
+  const EXIFR_RAW_OUTPUT = {
+    latitude: GPS_DECIMAL.latitude,
+    longitude: GPS_DECIMAL.longitude,
+    DateTimeOriginal: new Date('2026-07-26T18:22:30.000Z'),
     Make: 'Apple',
     Model: 'iPhone 14',
     Orientation: 1,
   };
 
   beforeEach(() => {
-    exifreader.load.mockResolvedValue(GPS_META);
+    exifr.default.parse.mockReset();
   });
 
-  it('mapRawExifToNamespace mapea fixture EXPECTED_GPS a ExifNamespace', () => {
-    const res = mapRawExifToNamespace(GPS_META);
-    expect(res.gps?.latitude).toBeCloseTo(EXPECTED_GPS.latitude);
-    expect(res.gps?.longitude).toBeCloseTo(EXPECTED_GPS.longitude);
-    expect(res.timestamp).toBe('2026-07-26T18:22:00.000Z');
-    expect(res.device).toEqual({ make: 'Apple', model: 'iPhone 14' });
-    expect(res.orientation).toBe(1);
+  it('extrae EXIF desde el File y mapea GPS decimal signado a ExifNamespace', async () => {
+    exifr.default.parse.mockResolvedValue(EXIFR_RAW_OUTPUT);
+
+    const file = new File(['(dummy jpeg)'], 'receipt.jpg', { type: 'image/jpeg' });
+    const result = await extractExifFromFile(file);
+
+    // exifr.parse fue llamado con el File original y las opciones pre-compress
+    expect(exifr.default.parse).toHaveBeenCalledWith(
+      file,
+      expect.objectContaining({ tiff: true, gps: true })
+    );
+    expect(result.gps?.latitude).toBeCloseTo(GPS_DECIMAL.latitude);
+    expect(result.gps?.longitude).toBeCloseTo(GPS_DECIMAL.longitude);
+    expect(result.timestamp).toBe('2026-07-26T18:22:30.000Z');
+    expect(result.device).toEqual({ make: 'Apple', model: 'iPhone 14' });
+    expect(result.orientation).toBe(1);
   });
 
-  it('mapRawExifToNamespace devuelve nulls si falta EXIF', () => {
-    const res = mapRawExifToNamespace({});
-    expect(res.gps).toBeNull();
-    expect(res.timestamp).toBeNull();
-    expect(res.device).toBeNull();
-    expect(res.orientation).toBeNull();
-  });
-
-  describe('extractExifFromImageDataUrl - mock real', () => {
-    it('extrae EXIF del mock fixture', async () => {
-      const anyUrl = 'data:image/jpeg;base64,/9j/4QAi/8A';
-      const got = await extractExifFromImageDataUrl(anyUrl);
-      expect(got.gps?.latitude).toBeCloseTo(EXPECTED_GPS.latitude);
-      expect(got.device).toEqual({ make: 'Apple', model: 'iPhone 14' });
-      expect(got.timestamp).toBe('2026-07-26T18:22:00.000Z');
+  it('tolera GPS anidado en raw.gps (forma mergeOutput:false) hacia el contrato raíz', async () => {
+    // Forma defensiva: si exifr (u otra versión) devuelve GPS anidado en
+    // raw.gps, el helper lo aplan igualmente al contrato raíz (D8).
+    exifr.default.parse.mockResolvedValue({
+      gps: { latitude: 40.713333, longitude: -74.001667 },
+      Make: 'Canon',
+      Model: 'EOS R6',
     });
 
-    it('retorna null namespace si exifreader falla', async () => {
-      exifreader.load.mockRejectedValue(new Error('mock exif failure'));
-      const anyUrl = 'data:image/jpeg;base64,/9j/4QAi/8A';
-      const got = await extractExifFromImageDataUrl(anyUrl);
-      expect(got).toEqual({
-        gps: null,
-        timestamp: null,
-        device: null,
-        orientation: null,
-      });
-    });
+    const file = new File(['(dummy)'], 'photo.jpg', { type: 'image/jpeg' });
+    const result = await extractExifFromFile(file);
+
+    expect(result.gps).toEqual(GPS_DECIMAL);
+    expect(result.device).toEqual({ make: 'Canon', model: 'EOS R6' });
+  });
+
+  it('devuelve namespace nulo si exifr.parse rechaza (fallback, nunca throw)', async () => {
+    exifr.default.parse.mockRejectedValue(new Error('mock parse failure'));
+
+    const file = new File(['(dummy)'], 'broken.jpg', { type: 'image/jpeg' });
+    const result = await extractExifFromFile(file);
+
+    expect(result).toEqual(EMPTY_NAMESPACE);
   });
 });
 
-/*
- TODO task-007: implementar stripExifMetadata() y tests verdes.
- Crear una función que remueva sensibilidad GPS/device y devuelva un mock Blob limpio RGPD-safe.
- Próximo commit o task.
-*/
+describe('mapRawExifToNamespace — contrato raíz (REQ-EXIF-02/03)', () => {
+  it('mapea fixture GPS decimal signado a ExifNamespace', () => {
+    const result = mapRawExifToNamespace({
+      latitude: 40.713333,
+      longitude: -74.001667,
+      DateTimeOriginal: '2026:07:26 18:22:30',
+      Make: 'Apple',
+      Model: 'iPhone 14',
+      Orientation: 1,
+    });
+
+    expect(result.gps?.latitude).toBeCloseTo(40.713333);
+    expect(result.gps?.longitude).toBeCloseTo(-74.001667);
+    expect(result.timestamp).toBe('2026-07-26T18:22:30.000Z');
+    expect(result.device).toEqual({ make: 'Apple', model: 'iPhone 14' });
+    expect(result.orientation).toBe(1);
+  });
+
+  it('acepta DateTimeOriginal como Date (reviveValues) y lo normaliza a ISO', () => {
+    const result = mapRawExifToNamespace({
+      latitude: 1,
+      longitude: 2,
+      DateTimeOriginal: new Date('2026-07-26T18:22:30.000Z'),
+    });
+
+    expect(result.timestamp).toBe('2026-07-26T18:22:30.000Z');
+    expect(result.gps).toEqual({ latitude: 1, longitude: 2 });
+  });
+
+  it('devuelve gps null y resto de campos null si falta EXIF', () => {
+    const result = mapRawExifToNamespace({});
+
+    expect(result.gps).toBeNull();
+    expect(result.timestamp).toBeNull();
+    expect(result.device).toBeNull();
+    expect(result.orientation).toBeNull();
+  });
+
+  it('devuelve gps null si solo falta lat o lon (sin error)', () => {
+    const result = mapRawExifToNamespace({ latitude: 40.713333, Make: 'Apple' });
+
+    expect(result.gps).toBeNull();
+    expect(result.device).toEqual({ make: 'Apple' });
+  });
+});
