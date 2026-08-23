@@ -104,19 +104,44 @@ export async function extractExifFromFile(file: File): Promise<ExifNamespace> {
 }
 
 /**
+ * Error lanzado por `stripExifMetadata`: la función está deliberadamente SIN
+ * implementar (fail-loud, ver design.md decisión D3). Se lanza un error tipado
+ * para que cualquier caller pueda detectarlo con `instanceof` y nunca confunda
+ * un "strip no implementado" con un fallo de procesamiento real.
+ */
+export class ExifStripNotImplementedError extends Error {
+  constructor() {
+    super(
+      'stripExifMetadata is NOT implemented: calling it would silently risk ' +
+        'uploading EXIF (GPS/device) without real stripping (RGPD). ' +
+        'See openspec change exif-metadata-mapping design D3; implement it ' +
+        'together with US-14 (ticket map) before any cloud upload path.',
+    );
+    this.name = 'ExifStripNotImplementedError';
+    // Establecer prototype explícito para que instanceof funcione tras
+    // transpilación a ES5 (target del proyecto).
+    Object.setPrototypeOf(this, ExifStripNotImplementedError.prototype);
+  }
+}
+
+/**
  * Elimina los metadatos EXIF sensibles de una imagen.
  *
- * ⚠️ NO IMPLEMENTADO. Este cambio (exif-metadata-mapping) solo construye la
- * infraestructura de extracción y transporte `{dataUrl, exif}` sin
- * persistencia. El strip real de EXIF queda fuera de alcance (ver design.md,
- * decisión D3/D5) y esta función NO debe invocarse en ningún path de
- * producción. Implementar junto con US-14 (mapa de tickets) si se requiere.
+ * ⚠️ NO IMPLEMENTADO (fail-loud). Esta función existe SOLO para preservar la
+ * integridad de la API pública y señalar de forma inequívoca que el strip real
+ * de EXIF queda fuera del alcance de este cambio (design.md, D3).
+ *
+ * RESTRICCIÓN: nunca debe invocarse en un path de producción. Si se llama,
+ * lanza `ExifStripNotImplementedError` en lugar de devolver un resultado
+ * falso: devolver la imagen "como si estuviera limpia" podría subir GPS y
+ * datos de dispositivo a cloud sin consentimiento (violación RGPD silenciosa).
+ * Implementar junto con US-14 (mapa de tickets) cuando se requiera.
+ *
+ * @throws {ExifStripNotImplementedError} siempre que se invoca.
  */
 export async function stripExifMetadata(
   _dataUrl: string,
   _outFormat: 'blob' | 'image' = 'blob',
 ): Promise<Blob | string> {
-  throw new Error(
-    'stripExifMetadata is NOT implemented (exif-metadata-mapping design, D3)',
-  );
+  throw new ExifStripNotImplementedError();
 }

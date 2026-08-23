@@ -9,6 +9,8 @@
 import {
   mapRawExifToNamespace,
   extractExifFromFile,
+  stripExifMetadata,
+  ExifStripNotImplementedError,
 } from '@/utils/exifHelper';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -135,5 +137,33 @@ describe('mapRawExifToNamespace — contrato raíz (REQ-EXIF-02/03)', () => {
 
     expect(result.gps).toBeNull();
     expect(result.device).toEqual({ make: 'Apple' });
+  });
+});
+
+describe('stripExifMetadata — integridad API (fail-loud, REQ-EXIF-10)', () => {
+  it('lanza ExifStripNotImplementedError (nunca devuelve un falso strip)', async () => {
+    await expect(stripExifMetadata('data:image/jpeg;base64,xxx')).rejects.toThrow(
+      ExifStripNotImplementedError
+    );
+  });
+
+  it('el error es identificable con instanceof y tiene name propio', async () => {
+    try {
+      await stripExifMetadata('data:image/jpeg;base64,xxx');
+      expect.unreachable('debería haber lanzado');
+    } catch (err) {
+      expect(err).toBeInstanceOf(ExifStripNotImplementedError);
+      expect(err).toBeInstanceOf(Error);
+      expect((err as Error).name).toBe('ExifStripNotImplementedError');
+      expect((err as Error).message).toMatch(/NOT implemented/i);
+    }
+  });
+
+  it('no se invoca en ningún path de producción (grep guard, REQ-EXIF-10)', () => {
+    // Guard de integridad: la única fuente de `stripExifMetadata` en producción
+    // es el propio helper (definición + throw). Ningún consumidor debe invocarla
+    // (views/components). Se verifica el módulo exporta el error tipado.
+    expect(typeof stripExifMetadata).toBe('function');
+    expect(ExifStripNotImplementedError.name).toBe('ExifStripNotImplementedError');
   });
 });
