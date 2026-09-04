@@ -117,7 +117,8 @@ async function getModel(
  */
 export async function scanWithFlorence(
   imageDataUrl: string,
-  onProgress?: ProgressCallback
+  onProgress?: ProgressCallback,
+  verboseLogs = false
 ): Promise<ScanResult> {
   onProgress?.({
     phase: 'preprocessing',
@@ -125,10 +126,14 @@ export async function scanWithFlorence(
   })
 
   // 1. Preprocesar imagen con canvas (rápido y sin dependencias)
+  // La imagen ya viene preprocesada desde el main thread (CameraScanFlow).
+  // Florence-2 es un VLM: re-aplicar equalize/contraste agresivos aquí degrada
+  // la imagen y produce texto vacío. Solo reescalar y dejar el resto intacto.
   const preprocessed = await preprocessReceiptImage(imageDataUrl, {
     maxWidth: 1280,
-    equalizeHistogram: true,
-    contrast: 1.2,
+    equalizeHistogram: false,
+    contrast: 1.0,
+    denoise: false,
   })
 
   onProgress?.({
@@ -149,8 +154,11 @@ export async function scanWithFlorence(
   const { RawImage } = transformers
   const image = await RawImage.fromURL(preprocessed)
 
-  // 4. Preprocesar inputs con el task prompt <OCR>
-  const inputs = await processor(image, '<OCR>')
+  // 4. Preprocesar inputs con el task prompt.
+  //    <OCR> devuelve texto pegado sin saltos (imposible de parsear bien).
+  //    <OCR_WITH_REGION> + post_process_generation devuelve labels + quad_boxes
+  //    (texto + coordenadas), permitiendo reconstruir líneas por coordenada Y.
+  const inputs = await processor(image, '<OCR_WITH_REGION>')
 
   // 5. Generar output
   const output = await model.generate({
@@ -158,19 +166,41 @@ export async function scanWithFlorence(
     max_new_tokens: 2048,
   })
 
-  // 6. Decodificar
+  // 6. Decodificar. IMPORTANTE: con OCR_WITH_REGION debemos conservar los
+  //    tokens <loc_...> (coordenadas). skip_special_tokens: true los elimina
+  //    y post_process_generation no podría reconstruir las regiones.
   const decoded = processor.batch_decode(output, {
-    skip_special_tokens: true,
+    skip_special_tokens: false,
   })
   const rawText: string = decoded?.[0] ?? ''
+
+  // 7. Post-procesar con regiones: labels + quad_boxes -> líneas ordenadas por Y.
+  let ocrText = rawText
+  try {
+    const regionResult = processor.post_process_generation(
+      rawText,
+      '<OCR_WITH_REGION>',
+      [image.width, image.height]
+    )
+    const regions = regionResult?.['<OCR_WITH_REGION>']
+    if (regions?.labels && regions?.quad_boxes) {
+      ocrText = reconstructLinesFromRegions(regions.labels, regions.quad_boxes)
+    }
+  } catch (e) {
+    console.warn('[florence] post_process_generation falló, usando texto crudo:', e)
+  }
+
+  if (verboseLogs) {
+    console.log('[florence] OCR texto reconstruido:\n', ocrText)
+  }
 
   onProgress?.({
     phase: 'parsing',
     message: 'Estructurando datos del ticket…',
   })
 
-  // 7. Parsear texto a estructura
-  const parsed = parseReceiptText(rawText)
+  // 8. Parsear texto a estructura (multi-línea reconstruida)
+  const parsed = parseReceiptText(ocrText)
 
   onProgress?.({
     phase: 'done',
@@ -181,8 +211,66 @@ export async function scanWithFlorence(
     ...parsed,
     engine: 'florence2',
     preprocessedImageDataUrl: preprocessed,
-    rawText,
+    rawText: ocrText,
   }
+}
+
+/**
+ * Reconstruye el texto multi-línea de un ticket desde las regiones detectadas
+ * por Florence-2 (<OCR_WITH_REGION>). Cada quad_box es [x1,y1,x2,y1b,x2b,y2b,x1b,y2]
+ * donde (y1, y1b) son los Y del tope de la línea. Ordenamos por Y (agrupando
+ * líneas con el mismo tope aproximado) y luego por X, devolviendo el texto con
+ * saltos de línea reales que parseReceiptText puede procesar.
+ */
+export function reconstructLinesFromRegions(
+  labels: string[],
+  quadBoxes: number[][]
+): string {
+  if (!labels || !quadBoxes || labels.length === 0) return ''
+
+  const LINE_Y_TOLERANCE = 6
+
+  // Ordenar por Y del tope (índices 1 y 3 son los Y superiores del quad)
+  const entries = labels
+    .map((label, i) => ({
+      label,
+      box: quadBoxes[i] ?? [0, 0, 0, 0, 0, 0, 0, 0],
+    }))
+    .filter((e) => e.label && e.label.trim().length > 0)
+    .sort((a, b) => {
+      const yA = Math.min(a.box[1], a.box[3])
+      const yB = Math.min(b.box[1], b.box[3])
+      return yA - yB
+    })
+
+  // Agrupar en líneas: mismo tope Y dentro de la tolerancia
+  const lines: Array<Array<{ text: string; x: number }>> = []
+  let currentLineY: number | null = null
+  for (const entry of entries) {
+    const yTop = Math.min(entry.box[1], entry.box[3])
+    const xLeft = Math.min(entry.box[0], entry.box[6])
+    if (
+      currentLineY === null ||
+      Math.abs(yTop - currentLineY) > LINE_Y_TOLERANCE
+    ) {
+      lines.push([{ text: entry.label, x: xLeft }])
+      currentLineY = yTop
+    } else {
+      lines[lines.length - 1].push({ text: entry.label, x: xLeft })
+    }
+  }
+
+  // Dentro de cada línea, ordenar por X y unir con espacio
+  return lines
+    .map((line) =>
+      line
+        .sort((a, b) => a.x - b.x)
+        .map((c) => c.text.trim())
+        .join(' ')
+        .trim()
+    )
+    .filter((l) => l.length > 0)
+    .join('\n')
 }
 
 /**

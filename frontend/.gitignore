@@ -107,3 +107,5 @@ web-build/
 .env.test.local
 .env.production.local
 .vscode/
+# Local Pi runtime state
+.atl/

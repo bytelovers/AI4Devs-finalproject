@@ -56,9 +56,7 @@ export async function preprocessReceiptImage(
     const targetW = Math.round(img.width * scale)
     const targetH = Math.round(img.height * scale)
 
-    const canvas = document.createElement('canvas')
-    canvas.width = targetW
-    canvas.height = targetH
+    const canvas = createCanvas(targetW, targetH)
     const ctx = canvas.getContext('2d', { willReadFrequently: true })
     if (!ctx) {
       // Sin contexto 2D, devolver original
@@ -108,11 +106,45 @@ export async function preprocessReceiptImage(
     }
 
     ctx.putImageData(imageData, 0, 0)
-    return canvas.toDataURL('image/jpeg', 0.92)
+    return await canvasToDataUrl(canvas)
   } catch (err) {
     console.warn('[preprocess] error, devolviendo original:', err)
     return imageDataUrl
   }
+}
+
+/** Crea un canvas (OffscreenCanvas en Web Worker, HTMLCanvasElement en main thread). */
+function createCanvas(
+  width: number,
+  height: number
+): HTMLCanvasElement | OffscreenCanvas {
+  if (typeof document !== 'undefined' && typeof HTMLCanvasElement !== 'undefined') {
+    const canvas = document.createElement('canvas')
+    canvas.width = width
+    canvas.height = height
+    return canvas
+  }
+  return new OffscreenCanvas(width, height)
+}
+
+/** Serializa un canvas a data URL JPEG (worker-safe). */
+async function canvasToDataUrl(
+  canvas: HTMLCanvasElement | OffscreenCanvas
+): Promise<string> {
+  if ('toDataURL' in canvas) {
+    return canvas.toDataURL('image/jpeg', 0.92)
+  }
+  // OffscreenCanvas: convertToBlob + FileReader (patrón de tesseract-engine).
+  const blob = await (canvas as OffscreenCanvas).convertToBlob({
+    type: 'image/jpeg',
+    quality: 0.92,
+  })
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onloadend = () => resolve(reader.result as string)
+    reader.onerror = () => reject(new Error('No se pudo convertir el canvas'))
+    reader.readAsDataURL(blob)
+  })
 }
 
 /**
@@ -482,7 +514,15 @@ export async function preprocessMultiSectionReceipt(
   }
 }
 
-function loadImageElement(src: string): Promise<HTMLImageElement> {
+async function loadImageElement(src: string): Promise<HTMLImageElement | ImageBitmap> {
+  // En Web Worker no existe HTMLImageElement (Image) ni document: usar
+  // createImageBitmap + OffscreenCanvas (API disponible en workers).
+  if (typeof Image === 'undefined' || typeof document === 'undefined') {
+    const res = await fetch(src)
+    const blob = await res.blob()
+    return createImageBitmap(blob)
+  }
+
   return new Promise((resolve, reject) => {
     const img = new Image()
     img.crossOrigin = 'anonymous'

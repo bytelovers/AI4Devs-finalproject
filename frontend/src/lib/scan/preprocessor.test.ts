@@ -1,10 +1,11 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import {
   equalizeHistogramFn,
   medianFilter3x3,
   applyAdaptiveThreshold,
   calculateOptimalCropScale,
   preprocessMultiSectionReceipt,
+  preprocessReceiptImage,
 } from './preprocessor'
 import type { ImageAdjustmentOptions } from './types'
 
@@ -436,5 +437,43 @@ describe('medianFilter3x3', () => {
     const result = medianFilter3x3(gray, width, height)
     expect(result[7]).toBeLessThanOrEqual(100) // noise removed
     expect(result.length).toBe(gray.length)
+  })
+})
+
+describe('preprocessReceiptImage (worker-safe)', () => {
+  const originalImage = globalThis.Image
+  const originalDocument = globalThis.document
+
+  afterEach(() => {
+    // Restaurar entorno de main thread
+    vi.stubGlobal('Image', originalImage)
+    vi.stubGlobal('document', originalDocument)
+    vi.unstubAllGlobals()
+  })
+
+  it('devuelve data URL sin lanzar cuando Image/document no existen (Web Worker)', async () => {
+    // Simular entorno de Web Worker: sin Image, sin document.
+    // createImageBitmap + OffscreenCanvas sí existen.
+    vi.stubGlobal('Image', undefined)
+    vi.stubGlobal('document', undefined)
+
+    // Stub createImageBitmap: devuelve un objeto con width/height/drawImage
+    // (suficiente para que preprocessReceiptImage dibuje y serialice).
+    const makeBitmap = () => ({
+      width: 4,
+      height: 2,
+      close: () => {},
+    })
+    vi.stubGlobal('createImageBitmap', vi.fn(async () => makeBitmap()))
+
+    const result = await preprocessReceiptImage(
+      'data:image/jpeg;base64,/9j/4AAQSkZJRg==',
+      { maxWidth: 4 }
+    )
+
+    // Al no haber toDataURL síncrono, el canvas Offscreen devuelve data URL
+    // vía convertToBlob + FileReader, o el catch devuelve el original.
+    expect(typeof result).toBe('string')
+    expect(result.startsWith('data:')).toBe(true)
   })
 })

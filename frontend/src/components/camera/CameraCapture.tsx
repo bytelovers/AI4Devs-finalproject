@@ -11,13 +11,23 @@ import {
   AlertCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { extractExifFromFile } from '@/utils/exifHelper'
+import type { CapturedImage, ExifNamespace } from '@/lib/types'
 
 interface CameraCaptureProps {
-  onCapture: (dataUrl: string) => void
+  onCapture: (img: CapturedImage) => void
   onCancel: () => void
 }
 
 type CaptureMode = 'live' | 'native' | 'upload' | 'preview'
+
+/** Namespace EXIF vacío: cámara en vivo (sin File) o fallback de extracción. */
+const EMPTY_NAMESPACE: ExifNamespace = {
+  gps: null,
+  timestamp: null,
+  device: null,
+  orientation: null,
+}
 
 /**
  * Componente para capturar imagen de un ticket.
@@ -32,6 +42,7 @@ type CaptureMode = 'live' | 'native' | 'upload' | 'preview'
 export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
   const [mode, setMode] = useState<CaptureMode>('live')
   const [preview, setPreview] = useState<string | null>(null)
+  const [exif, setExif] = useState<ExifNamespace>(EMPTY_NAMESPACE)
   const [error, setError] = useState<string | null>(null)
   const [cameraReady, setCameraReady] = useState(false)
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment')
@@ -105,6 +116,8 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
     const dataUrl = canvas.toDataURL('image/jpeg', 0.92)
     stopCamera()
+    // Cámara en vivo: no hay File → EXIF es namespace nulo (REQ-EXIF-07).
+    setExif(EMPTY_NAMESPACE)
     setPreview(dataUrl)
     setMode('preview')
   }, [cameraReady, stopCamera])
@@ -142,6 +155,9 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
         setError('El archivo debe ser una imagen.')
         return
       }
+      // REQ-EXIF-01 (D2): extraer EXIF del File ORIGINAL antes de comprimir —
+      // compressImage re-dibuja en canvas y los navegadores descartan EXIF.
+      void extractExifFromFile(file).then(setExif)
       compressImage(file, 1600, 0.85)
         .then((dataUrl) => {
           setPreview(dataUrl)
@@ -154,7 +170,8 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
   )
 
   const handleConfirm = () => {
-    if (preview) onCapture(preview)
+    // Transporte {dataUrl, exif} (REQ-EXIF-06); la persistencia lo descarta.
+    if (preview) onCapture({ dataUrl: preview, exif })
   }
 
   const handleRetake = () => {

@@ -20,6 +20,7 @@ import { preprocessReceiptImage } from '@/lib/scan'
 import { genId } from '@/lib/calc'
 import type { OCRWorkerType } from '@/workers/ocr.worker'
 import type { ScanResult, ScanProgress } from '@/lib/scan/types'
+import type { CapturedImage } from '@/lib/types'
 import { useAppStore } from '@/lib/store'
 
 type ScanPhase = 'capture' | 'scanning' | 'complete' | 'error'
@@ -46,7 +47,7 @@ function getWorker(): Comlink.Remote<OCRWorkerType> {
 
 export function CameraScanFlow({ onClose, onTicketCreated }: CameraScanFlowProps) {
   const [phase, setPhase] = useState<ScanPhase>('capture')
-  const [capturedImage, setCapturedImage] = useState<string | null>(null)
+  const [capturedImage, setCapturedImage] = useState<CapturedImage | null>(null)
   const [scanProgress, setScanProgress] = useState(0)
   const [scanMessage, setScanMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -64,10 +65,12 @@ export function CameraScanFlow({ onClose, onTicketCreated }: CameraScanFlowProps
 
   const addTicket = useAppStore((s) => s.addTicket)
   const preferredEngine = useAppStore((s) => s.settings.preferredEngine)
+  const verboseLogs = useAppStore((s) => s.featureFlags.verboseLogs)
 
   const handleCapture = useCallback(
-    async (dataUrl: string) => {
-      setCapturedImage(dataUrl)
+    async (img: CapturedImage) => {
+      // EXIF viaja en `img.exif` pero NO se persiste (D3, sin consentimiento).
+      setCapturedImage(img)
       setPhase('scanning')
       setScanProgress(0)
       setScanMessage('Preparing image…')
@@ -76,7 +79,7 @@ export function CameraScanFlow({ onClose, onTicketCreated }: CameraScanFlowProps
 
       try {
         // Step 1: Preprocess for OCR
-        const processed = await preprocessReceiptImage(dataUrl, {
+        const processed = await preprocessReceiptImage(img.dataUrl, {
           maxWidth: 1280,
           equalizeHistogram: true,
           contrast: 1.2,
@@ -92,7 +95,7 @@ export function CameraScanFlow({ onClose, onTicketCreated }: CameraScanFlowProps
           {
             preferredEngine: preferredEngine as 'tesseract' | 'tesseract-ner' | 'florence2',
             useMiniAgent: true,
-            verboseLogs: false,
+            verboseLogs,
           },
           Comlink.proxy((p: ScanProgress) => {
             if (abortRef.current) return
@@ -119,7 +122,7 @@ export function CameraScanFlow({ onClose, onTicketCreated }: CameraScanFlowProps
             ? `Ticket - ${result.merchant}`
             : 'Scanned ticket',
           merchant: result.merchant ?? undefined,
-          image: capturedImage ?? undefined,
+          image: capturedImage?.dataUrl ?? undefined,
           items: (result.items || []).map((item) => ({
             id: genId(),
             name: item.name,
@@ -160,7 +163,7 @@ export function CameraScanFlow({ onClose, onTicketCreated }: CameraScanFlowProps
       setErrorMessage(null)
       setScanProgress(0)
       setScanMessage('Preparing image…')
-      // Re-trigger the scan
+      // Re-trigger the scan with the same capture (dataUrl + exif descartado)
       handleCapture(capturedImage)
     } else {
       setPhase('capture')

@@ -27,6 +27,7 @@ import {
   Sparkles,
   Flag,
   Zap,
+  Terminal,
   Upload,
   Download,
 } from 'lucide-react'
@@ -100,6 +101,16 @@ export function SettingsView() {
             <Switch
               checked={featureFlags.showOcrReview}
               onCheckedChange={(v) => updateFeatureFlags({ showOcrReview: v })}
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Terminal className="h-4 w-4 text-sky-500" />
+              <span className="text-sm font-medium">Logs detallados</span>
+            </div>
+            <Switch
+              checked={featureFlags.verboseLogs}
+              onCheckedChange={(v) => updateFeatureFlags({ verboseLogs: v })}
             />
           </div>
           <p className="text-xs text-muted-foreground">
