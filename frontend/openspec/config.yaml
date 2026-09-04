@@ -1,0 +1,22 @@
+project: spliteat-frontend
+stack:
+  framework: React 18 + Vite
+  language: TypeScript 5.2
+  state: Zustand
+  styling: Tailwind CSS
+  router: React Router v7
+testing:
+  runner: vitest
+  command: pnpm test
+  strict_tdd: true
+  environment: jsdom
+  layers:
+    unit: src/**/*.test.ts
+    component: src/**/*.test.tsx
+    integration: src/**/*.integration.test.ts
+  utilities:
+    - "@testing-library/react"
+    - "@testing-library/jest-dom"
+    - "@testing-library/user-event"
+persistence:
+  mode: hybrid

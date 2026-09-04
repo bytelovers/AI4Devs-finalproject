@@ -15,7 +15,7 @@ SplitEat follows a modified **GitFlow / Feature Branching** strategy, with stric
 ### 1.2 Chained / Stacked Pull Requests (Review Workload Guard)
 To keep PRs reviewable and prevent single pull requests from exceeding **400 lines of code**, we implement a **Stacked PR (chained)** workflow for complex features:
 
-- **Rule**: If a feature is estimated to exceed 400 lines (e.g., Task T-03: Cloud OCR + Regex Parser), it must be split into autonomous, sequential units of work.
+- **Rule**: If a feature is estimated to exceed 400 lines (e.g., Task TSK-3.5: Cloud OCR + Regex Parser), it must be split into autonomous, sequential units of work.
 - **Chain Strategy**: *Stacked-to-Main* or *Feature-Branch-Chain*.
   - For SplitEat, we use **Stacked-to-Main**: Each small PR targets `main` (or `develop`) sequentially, containing complete tests and working implementations for that sub-slice, keeping review sizes under 400 lines.
   

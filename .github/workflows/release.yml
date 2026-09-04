@@ -1,0 +1,59 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to build a release for (e.g. v0.2.0)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve tag
+        id: tag
+        run: |
+          if [ -n "${{ github.event.inputs.tag }}" ]; then
+            echo "tag=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build release notes from commits since previous tag
+        id: notes
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          PREV=$(git describe --tags --abbrev=0 "$TAG^" 2>/dev/null || echo "")
+          if [ -n "$PREV" ]; then
+            git log --oneline --no-merges "$PREV..$TAG" > /tmp/release-notes.txt
+          else
+            git log --oneline --no-merges "$TAG" > /tmp/release-notes.txt
+          fi
+          {
+            echo "## What's changed"
+            echo ""
+            cat /tmp/release-notes.txt
+          } > /tmp/release-body.md
+          echo "body_ready=true" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: Release ${{ steps.tag.outputs.tag }}
+          body_path: /tmp/release-body.md
+          draft: false
+          prerelease: false

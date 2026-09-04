@@ -109,44 +109,4 @@ Generates a dynamic Bizum payment link and a custom QR code. The payment string 
 }
 ```
 
----
 
-## 3. Contacts / Groups Synchronization Service
-
-Saves and retrieves frequent contacts and family subgroups to Firestore.
-
-- **Endpoint**: `POST /api/v1/contacts/sync`
-- **Authentication**: Required.
-- **Content-Type**: `application/json`
-
-### 3.1 Request Payload
-```json
-{
-  "contacts": [
-    {
-      "id": "c7a82b9e-43a1-9492-23c2a39281db",
-      "name": "Elena Gómez",
-      "phone": "+34678123456"
-    }
-  ],
-  "groups": [
-    {
-      "id": "d89b213a-928d-4e1b-9f93-12a83c72dbe2",
-      "name": "Familia Gómez",
-      "memberIds": ["c7a82b9e-43a1-9492-23c2a39281db", "e9b213a-928d-4e1b-9f93-12a83c72dbe3"]
-    }
-  ]
-}
-```
-
-### 3.2 Response Payload (200 OK)
-```json
-{
-  "success": true,
-  "syncedAt": 1780796880120,
-  "recordsCount": {
-    "contacts": 1,
-    "groups": 1
-  }
-}
-```

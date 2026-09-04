@@ -1,0 +1,39 @@
+name: Deploy Vercel
+
+on:
+  push:
+    branches: [feature/feature-entrega2-ADLC]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/deploy-vercel.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: vercel-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy frontend to Vercel
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to Vercel (API mode)
+        id: vercel
+        uses: amondnet/vercel-action@v42
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          experimental-api: true
+          target: production
+          root-directory: frontend
+          github-comment: false
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Show deployment info
+        run: |
+          echo "Preview URL: ${{ steps.vercel.outputs.preview-url }}"
+          echo "Deployment ID: ${{ steps.vercel.outputs.deployment-id }}"

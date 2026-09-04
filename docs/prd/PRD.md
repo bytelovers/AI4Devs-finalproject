@@ -106,6 +106,7 @@ Para grupos de amigos y familias que salen a cenar juntos y sufren la lentitud y
 SplitEat se lanza inicialmente como una herramienta 100% gratuita y sin publicidad para los usuarios finales.
 - **Registro Opcional**: Incentiva el registro al ofrecer utilidades como QR Bizum con plantillas, sincronización de amigos e historial cloud permanente.
 - **Futura explotación analítica privada**: Los datos agregados y anónimos de consumo y ubicación en el histórico de los usuarios registrados se procesarán para generar informes de mercado de gran valor para la hostelería, respetando al 100% el RGPD.
+- **B2B SaaS Roadmap**: Future monetization stages will introduce B2B SaaS channels, including white-label APIs/SDKs for itemization, aggregated analytics dashboard products for the hospitality and travel sectors, and integrations with external fintech platforms.
 
 ---
 
@@ -136,6 +137,7 @@ SplitEat se lanza inicialmente como una herramienta 100% gratuita y sin publicid
 |-----------|---------|-------------------|
 | Aplicación Web Autocontenida / Mobile | Debe funcionar de forma óptima en navegadores móviles de iOS y Android. | Obliga a optimizar la interfaz para gestos táctiles. |
 | Filosofía Offline-First | Todo el proceso de cálculo, edición y persistencia debe funcionar sin internet. | Requiere que el OCR sea ligero o que haya una excelente estrategia de almacenamiento de caché (PWA/Local Storage). |
+| Camera & Geolocation Permissions | Accessing media devices for camera scans and the Geolocation API requires a secure context (HTTPS/localhost). | The application must handle permission denials gracefully, falling back to gallery image uploads and manual entry without geo-tagging. |
 
 ### 6.2 Business Constraints
 
@@ -147,7 +149,7 @@ SplitEat se lanza inicialmente como una herramienta 100% gratuita y sin publicid
 
 | Regulation | Requirement | Impact | Compliance Strategy |
 |-----------|-------------|--------|---------------------|
-| RGPD (Reglamento General de Protección de Datos) | Los datos de geolocalización EXIF y fotos de los tiques contienen información privada. | Requiere procesar datos EXIF de forma local y anónima en el dispositivo del cliente. | El envío a la nube de cualquier dato geolocalizado o historial requiere consentimiento explícito e inicio de sesión. |
+| RGPD (Reglamento General de Protección de Datos) | Los datos de geolocalización EXIF y fotos de los tiques contienen información privada. Además, los datos seudonimizados pueden ser indirectamente identificables en entornos hiperlocales (combinaciones de fecha, local, importe). | Requiere procesar datos EXIF y fotos de forma local y anónima. Cualquier tratamiento secundario (como analítica comercial) exige anonimización estricta, agregación y consentimiento específico e informado por separado. | El envío a la nube de cualquier dato geolocalizado o historial requiere consentimiento explícito e inicio de sesión. La monetización secundaria de datos agregados se mantendrá subordinada al cumplimiento estricto del RGPD sin forzar la aceptación funcional. |
 
 ---
 

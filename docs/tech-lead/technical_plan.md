@@ -69,7 +69,7 @@ graph TD
 ## 4. Development Tasks & Breakdown
 
 ### Task 1: Project Setup and Offline-First Storage (Dexie.js)
-- **ID**: T-01
+- **ID**: TSK-1.1
 - **Depends on**: None
 - **Business Requirement**: US-09, US-11
 - **Estimate**: 3 days
@@ -79,8 +79,8 @@ graph TD
   - Tests unitarios de base de datos local (inserción, actualización de relaciones, borrado).
 
 ### Task 2: UI Framework & Drag-and-Drop Assignment
-- **ID**: T-02
-- **Depends on**: T-01
+- **ID**: TSK-2.1
+- **Depends on**: TSK-1.1
 - **Business Requirement**: US-03, US-04
 - **Estimate**: 5 days
 - **Deliverable**:
@@ -89,7 +89,7 @@ graph TD
   - Tests unitarios y de integración de flujo de asignación simulando eventos touch de iOS/Android.
 
 ### Task 3: OCR Processing & Parser Engine
-- **ID**: T-03
+- **ID**: TSK-3.1
 - **Depends on**: None
 - **Business Requirement**: US-01, US-02
 - **Estimate**: 6 days
@@ -100,8 +100,8 @@ graph TD
   - Cobertura de tests de integración para 10 variaciones de tickets de restaurantes reales.
 
 ### Task 4: Rounding, Alerter & Gamification (Ruleta del Pagador)
-- **ID**: T-04
-- **Depends on**: T-02
+- **ID**: TSK-4.1
+- **Depends on**: TSK-2.1
 - **Business Requirement**: US-06, US-07, US-08
 - **Estimate**: 4 days
 - **Deliverable**:
@@ -111,8 +111,8 @@ graph TD
   - Tests unitarios matemáticos de redondeo y comprobaciones del estado de cuadre.
 
 ### Task 5: Optional Auth & Cloud Synchronization
-- **ID**: T-05
-- **Depends on**: T-01, T-02
+- **ID**: TSK-5.1
+- **Depends on**: TSK-1.1, TSK-2.1
 - **Business Requirement**: US-10, US-11, US-12
 - **Estimate**: 5 days
 - **Deliverable**:
@@ -125,5 +125,5 @@ graph TD
 
 ## 5. Branching Strategy
 Se utilizará una estrategia de **Feature Branches** que se consolidan en una rama estable de pre-producción antes de subir a main.
-- Las tareas `T-01` a `T-04` (flujo offline obligatorio) se integrarán en una sola rama de release (`release/mvp-offline`) para asegurar la consistencia del flujo sin registro.
-- La tarea `T-05` (nube y registro) se desarrollará en una rama secundaria y se integrará mediante una PR separada para validar que no rompe el comportamiento offline-first.
+- Las tareas `TSK-1.1` a `TSK-4.1` (flujo offline obligatorio) se integrarán en una sola rama de release (`release/mvp-offline`) para asegurar la consistencia del flujo sin registro.
+- La tarea `TSK-5.1` (nube y registro) se desarrollará en una rama secundaria y se integrará mediante una PR separada para validar que no rompe el comportamiento offline-first.
