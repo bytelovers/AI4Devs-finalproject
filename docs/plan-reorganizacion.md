@@ -748,3 +748,42 @@ tienen ninguna vía de retorno abierta en el producto entregado.
 - Diagnóstico de la sección 2 obtenido por lectura directa de los 14 documentos de nivel superior
   y los 42 archivos de `user-stories/`, con `grep` y `find` sobre el árbol. Sin modificación de
   archivos durante el mapeo.
+
+---
+
+## 11. Registro de la cadena de PRs
+
+La reorganización se entregó como una cadena de PRs **por área**, porque la revisión nativa del
+arnés no puede tomar el candidato completo: excede su presupuesto de contexto y el controlador se
+bloquea **antes de crear autoridad**, sin dejar nada a medias.
+
+### Rebanadas
+
+| # | Rebanada | PR | Base | Líneas | Estado |
+| :--- | :--- | ---: | :--- | ---: | :--- |
+| 1 | Gobernanza: estándar de escritura | #36 | rama de entrega | 924 | `entregado` |
+| 2 | Estructura: índice y taxonomía de dominios | #37 | slice-01 | 3.562 | `entregado` |
+| 3 | Producto y alcance | #38 | slice-02 | 3.214 | `entregado` |
+| 4 | Arquitectura | #39 | slice-03 | 963 | `entregado` |
+| 5 | Datos y persistencia | #40 | slice-04 | 669 | `entregado` |
+| 6 | Integraciones | #41 | slice-05 | 454 | `entregado` |
+| 7 | Calidad | #42 | slice-06 | 473 | `entregado` |
+| 8 | Proceso y entrega | #43 | slice-07 | 1.368 | `entregado` |
+| 9 | Trazabilidad y evidencia | #44 | slice-08 | 687 | `entregado` |
+| 10 | Raíz del repositorio | #45 | slice-09 | 1.241 | `entregado` |
+| 11 | Plan y seguimiento ODD | #46 | slice-10 | 842 | `entregado` |
+
+### Verificación de la cadena
+
+La unión de las once rebanadas reproduce el estado final **exactamente**: el árbol de la rama de
+entrega es idéntico al del commit de cierre. Y la auditoría completa ejecutada sobre la rama real
+—no sobre la identidad de árboles— da **288 enlaces sin problemas**, **64 documentos con
+frontmatter**, 0 estados fuera del vocabulario cerrado, **0 diagramas sin acompañamiento textual**,
+**0 colisiones de identificadores** y **0 rutas de la taxonomía antigua**.
+
+### Presupuesto de revisión
+
+Ninguna rebanada cabe en 400 líneas; la más pequeña mide **454**, un 13 % por encima. Se aplica
+`size:exception` a las once: es documentación y no código, y la unidad revisable es el dominio,
+porque partir un dominio entre dos PRs dejaría el árbol incoherente —enlaces, estados y recuentos
+deben concordar entre sí—.
