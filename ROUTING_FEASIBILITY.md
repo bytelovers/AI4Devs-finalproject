@@ -1,126 +1,185 @@
-# Informe de Viabilidad: Migración a Enrutador Basado en URL
+---
+doc_id: routing-feasibility
+title: Informe de viabilidad del enrutado por URL
+domain: process
+audience: [human, agent]
+status: mixto
+source_of_truth_for:
+  - comparativa de librerías de enrutado y análisis de riesgos de la migración
+last_verified: 2026-09-22
+verified_against: c66fd3f
+---
 
-**Fecha:** 2025-07-19  
-**Proyecto:** Cuadra / SplitEat (Vite + React 18 + TS + Zustand + PWA)  
-**Worktree:** `frontend-routing` (rama `refactor/routing`) — exploración de solo lectura
+# Informe de viabilidad del enrutado por URL
+
+**Naturaleza de este documento.** Es un **informe de investigación**, no un plan de registro: no
+propone trabajo futuro y no debe leerse como una propuesta sin resolver. Su recomendación **se
+adoptó** y está implementada: `react-router-dom` v7 en modo data con `createBrowserRouter` en
+`frontend/src/main.tsx`, y la utilidad de guarda de navegación entregada en
+`frontend/src/hooks/useBlocker.ts`. La decisión canónica es `DEC-ARCH-05` en
+[docs/architecture/decisions.md](/docs/architecture/decisions.md), y el cambio se integró en el
+pull request #11 (`3994bec`, 2026-07-25). El valor del documento no es la propuesta, que ya se
+ejecutó, sino la **comparativa de alternativas** y el **análisis de riesgos**, que son la parte que
+no se reconstruye leyendo el código. El apartado `## Estado` separa lo adoptado de lo que quedó
+parcial.
+
+**Contexto histórico de la redacción.** Fecha del informe: 2025-07-19. Se escribió en el worktree
+`frontend-routing` (rama `refactor/routing`) con exploración de solo lectura, antes de la
+migración. Ese worktree ya no existe; el registro del cambio se conserva en
+`openspec/changes/archive/2026-07-25-routing-refactor/`, que queda fuera del conjunto documental.
 
 ---
 
-## Resumen Ejecutivo
+## Resumen
 
-La arquitectura actual usa **estado global Zustand (`currentView`)** como "router" virtual sin URLs. Migrar a un enrutador real (`react-router-dom` v7) es **viable y recomendado**, pero requiere **refactor significativo** (≈ 15-20 archivos, ~500 líneas de cambios) y atención a edge cases del flujo multi-paso `NewTicketView`.
+La arquitectura previa usaba el estado global de Zustand (`currentView`) como enrutador virtual sin
+URL. La conclusión del informe fue que migrar a un enrutador real (`react-router-dom` v7) era viable
+y recomendable, a cambio de un refactor de unos 15 a 20 archivos y atención a los casos límite del
+asistente de ticket nuevo, que entonces vivía en un solo componente. La recomendación se adoptó con
+la migración en dos fases y hoy está entregada: las rutas de nivel superior, las rutas anidadas del
+asistente y la separación del estado de navegación respecto de la persistencia. Queda parcial la
+guarda de navegación, que existe como utilidad sin consumidores, y la restauración de la posición de
+scroll, que no se implementó. Este documento es la fuente canónica de la comparativa de librerías y
+del análisis de riesgos de la migración; la decisión y su motivo son canónicos en
+[docs/architecture/decisions.md](/docs/architecture/decisions.md) como `DEC-ARCH-05`.
 
-**Recomendación:** **Adoptar `react-router-dom` v7 (data mode)** con migración en **2 fases**:
-1. **Fase 1 (S):** Vistas de nivel superior (`/`, `/contacts`, `/groups`, `/tickets`, `/settings`...) + persistencia de scroll + PWA sin cambios.
-2. **Fase 2 (M):** Rutas anidadas para el wizard `NewTicketView` (`/tickets/new/*`) + bloqueadores de navegación + deep-linking seguro.
+## Estado
 
----
+| Área | Estado | Evidencia |
+| :--- | :--- | :--- |
+| Comparativa de librerías de enrutado y análisis de riesgos | `entregado` | Se conserva íntegra en `## Comparativa de librerías` y `## Riesgos y casos límite`; es la fuente canónica de ambos hechos |
+| Recomendación: `react-router-dom` v7 en modo data | `entregado` | `frontend/package.json` declara `react-router-dom` `^7.18.1`; `createBrowserRouter` en `frontend/src/main.tsx:4` y `:37` |
+| Rutas de nivel superior | `entregado` | `frontend/src/main.tsx` declara `/`, `/contacts`, `/groups`, `/groups/:groupId`, `/tickets`, `/tickets/:ticketId`, `/settings`, `/settings/feature-flags` y una ruta de captura para el 404 |
+| Rutas anidadas del asistente de ticket nuevo | `entregado` | `frontend/src/main.tsx` anida `capture`, `review`, `participants`, `assign` y `summary` bajo `tickets/new`, con `frontend/src/views/NewTicketShell.tsx` como contenedor |
+| Pasos transitorios fuera de las rutas | `entregado` | No hay rutas `scanning` ni `ocr-review` en `frontend/src/main.tsx`: los dos pasos se resuelven como estado interno, que es lo que el informe recomendaba |
+| Separación del estado de navegación respecto de la persistencia | `entregado` | `partialize` en `frontend/src/lib/store.ts:465-475` persiste datos y `draftTicketId`, y ninguna bandera de vista |
+| Guarda de navegación al salir del formulario | `parcial` | La utilidad entregada existe en `frontend/src/hooks/useBlocker.ts` y los predicados por paso en `frontend/src/lib/wizard-loaders.ts:168-169`; ningún archivo la importa (`grep -rn 'import.*useBlocker' frontend/src` → 0 líneas fuera de su propia definición), de modo que la confirmación al salir no está activada |
+| Restauración de la posición de scroll | `parcial` | No hay `ScrollRestoration` ni llamada a `window.scrollTo` en `frontend/src` (`grep -rn 'ScrollRestoration' frontend/src` → 0 líneas); el informe lo incluía como mitigación |
+| Lista de tickets | `parcial` | `frontend/src/views/TicketsListView.tsx` existe y está enrutada en `/tickets`, pero no pagina y ninguna pantalla enlaza a esa ruta |
+| Pruebas con envoltura de enrutador | `entregado` | `frontend/src/test-utils/render-with-router.tsx` ofrece la envoltura que el informe pedía añadir en `frontend/src/setupTests.ts` |
 
-## Arquitectura Actual
+## Arquitectura previa a la migración
 
-| Componente | Responsabilidad |
-|------------|-----------------|
-| `main.tsx` → `AppRouter` | Switch basado en `currentView` (Zustand) |
-| `store.ts` | `currentView: ViewName`, `setView()`, `openTicket()`, `openGroup()`, `activeTicketId`, `activeGroupId` |
-| `types.ts` | `ViewName = 'home' \| 'contacts' \| 'groups' \| 'new-ticket' \| 'ticket-detail' \| 'settings' \| 'feature-flags' \| 'group-detail'` |
-| `AppShell` | Layout wrapper + bottom nav + transiciones Framer Motion (`motionKey` = `currentView + activeTicketId + activeGroupId`) |
-| `NewTicketView` | **Estado interno crítico:** `step` ∈ `['capture'→'scanning'→'ocr-review'→'review'→'participants'→'assign'→'summary']` — todo en un solo componente, sin URLs |
-| SW (`sw.js`) | `request.mode === 'navigate'` → `caches.match('/')` fallback. Funciona con SPA porque toda navegación es `mode: navigate` a `/` |
+Fotografía del estado en el momento de escribir el informe, conservada como punto de partida del
+análisis. Describe el sistema que se sustituyó, no el entregado: la vista actual se guardaba como
+una bandera en el estado global y no había URL. El componente del asistente que aparece en la última
+fila era un único archivo y hoy está sustituido por el contenedor y las vistas por paso.
 
----
+| Componente previo | Responsabilidad | Ruta actual |
+| :--- | :--- | :--- |
+| `frontend/src/main.tsx` → `AppRouter` | Conmutación basada en `currentView` del estado global | `frontend/src/main.tsx` (hoy monta `createBrowserRouter`) |
+| `frontend/src/lib/store.ts` | `currentView: ViewName`, `setView()`, `openTicket()`, `openGroup()`, `activeTicketId`, `activeGroupId` | `frontend/src/lib/store.ts` (hoy no hay bandera de vista: la ruta es la única fuente de verdad) |
+| `frontend/src/lib/types.ts` | `ViewName`, la unión de vistas que hacía de tabla de rutas | `frontend/src/lib/types.ts` |
+| `frontend/src/components/layout/AppShell.tsx` | Envoltura de las vistas con la navegación inferior y las transiciones; clave de animación `currentView + activeTicketId + activeGroupId` | `frontend/src/components/layout/AppShell.tsx` (hoy la clave es `location.pathname` y la navegación usa `NavLink`) |
+| `frontend/src/views/NewTicketView.tsx` → vista de ticket nuevo previa | Estado interno de los pasos `capture → scanning → ocr-review → review → participants → assign → summary` en un solo componente, sin URLs | Ya no existe: lo sustituyen `frontend/src/views/NewTicketShell.tsx` y las vistas por paso bajo `frontend/src/views/` |
+| `frontend/public/sw.js` | Respuesta desde caché para las peticiones de navegación | `frontend/public/sw.js` (sin cambios por la migración) |
 
-## Comparativa de Librerías
+## Comparativa de librerías
 
 | Criterio | `react-router-dom` v7 | `wouter` | `@tanstack/router` |
-|----------|----------------------|----------|-------------------|
-| **Bundle (gz)** | ~12 KB | ~1.5 KB | ~8 KB (core) + codegen |
-| **Type safety** | Buena (v7 `RouteObject` + loader types) | Básica | **Excelente** (file-based o code-based, full inference) |
-| **Nested routes** | Nativo (`children[]`) | Manual | Nativo (file-based o code-based) |
-| **Data loading** | `loader`/`action` (Remix-style) | No | Sí (loaders con caching) |
-| **Blockers/Navigation guards** | `useBlocker` (v7) | No | `beforeLoad` |
-| **PWA/SSR ready** | Sí (React Router 7 = Remix) | Solo CSR | Sí |
-| **Curva de aprendizaje** | Media (v7 = nuevo API) | Baja | Media-Alta (conceptos nuevos) |
-| **Integración Zustand** | Manual (`useNavigate` wrappers) | Manual | Manual |
-| **Madurez ecosistema** | **Muy alta** (Meta/Remix) | Alta (pequeño) | Creciente (TanStack) |
+| :--- | :--- | :--- | :--- |
+| **Peso del bundle (gz)** | ~12 KB | ~1.5 KB | ~8 KB (núcleo) + generación de código |
+| **Tipado** | Bueno (`RouteObject` en v7 y tipos de loader) | Básico | **Excelente** (por archivo o por código, con inferencia completa) |
+| **Rutas anidadas** | Nativas (`children[]`) | Manuales | Nativas (por archivo o por código) |
+| **Carga de datos** | `loader` y `action` al estilo de Remix | No ofrece | Sí (loaders con caché) |
+| **Guardas de navegación** | `useBlocker` (v7) | No ofrece | `beforeLoad` |
+| **Idoneidad para PWA y SSR** | Sí (la base de React Router 7 se comparte con Remix) | Solo cliente | Sí |
+| **Curva de aprendizaje** | Media (la API de v7 es nueva) | Baja | Media-alta (conceptos nuevos) |
+| **Integración con Zustand** | Manual (envolturas sobre `useNavigate`) | Manual | Manual |
+| **Madurez del ecosistema** | **Muy alta** (Meta y Remix) | Alta, con comunidad pequeña | Creciente (TanStack) |
 
-### ✅ **Elección recomendada: `react-router-dom` v7 (Data Mode)**
+### Elección recomendada: `react-router-dom` v7 (modo data)
 
-**Razones:**
-1. **PWA + offline-first**: RR7 es la base de Remix, diseñado para SSR/SSG/SPA híbrido — el SW actual funciona sin cambios.
-2. **Nested routes nativos**: El wizard `NewTicketView` encaja perfecto en `children[]` con `outlet`.
-3. **`useBlocker`**: Necesario para el back-button custom que borra borradores vacíos.
-4. **Bundle acceptable**: +12 KB gz es razonable para una PWA que ya carga ~175 KB JS (transformers).
-5. **Comunidad y longevidad**: Meta lo mantiene, migración futura a Remix trivial si se desea SSR.
+Razones del informe, tal como se escribieron:
 
-> **Nota:** `wouter` es tentador por tamaño, pero **no tiene blockers ni nested routes declarativos** — habría que reimplementar lógica de guardias manualmente. `@tanstack/router` es excelente pero añade complejidad (codegen, virtual routes) que no justifica el ROI para este proyecto.
+1. **PWA y uso sin conexión**: la base de React Router 7 comparte diseño con Remix para SSR, SSG y
+   SPA híbrida, y el service worker existente funcionaba sin cambios.
+2. **Rutas anidadas nativas**: el asistente de ticket nuevo encaja en `children[]` con `outlet`.
+3. **`useBlocker`**: necesario para el botón de retroceso que borra los borradores vacíos.
+4. **Peso aceptable**: +12 KB gz es razonable para una PWA que ya carga el motor de OCR.
+5. **Comunidad y longevidad**: la mantiene Meta y la migración futura a Remix es directa si se
+   quiere SSR.
 
----
+`wouter` era tentador por tamaño, pero no ofrece guardas ni rutas anidadas declarativas, de modo que
+la lógica de guardias habría que reimplementarla a mano. `@tanstack/router` es excelente y añade
+generación de código y conceptos nuevos que el proyecto no necesitaba.
 
-## Estructura de URLs Propuesta
+## Estructura de URLs
 
-```
+Estructura que el informe propuso y que la migración adoptó. La columna de detalle indica qué existe
+hoy de cada línea; las dos desviaciones están declaradas al final de la sección.
+
+```text
 /                                    → HomeView
 /contacts                            → ContactsView
 /groups                              → GroupsView
 /groups/:groupId                     → GroupDetailView
-/tickets                             → (nuevo) TicketsListView (todos, paginados)
-/tickets/new                         → NewTicketView /capture (redirect)
-/tickets/new/capture                 → step=capture
-/tickets/new/review                  → step=review
-/tickets/new/participants            → step=participants
-/tickets/new/assign                  → step=assign
-/tickets/new/summary                 → step=summary
-/tickets/new/ocr-review              → step=ocr-review (transient, no deep-linkable)
-/tickets/new/scanning                → step=scanning (transient, no deep-linkable)
+/tickets                             → TicketsListView (existe; sin paginación)
+/tickets/new                         → NewTicketShell (redirige a /capture)
+/tickets/new/capture                 → NewTicketCaptureView
+/tickets/new/review                  → NewTicketReviewView
+/tickets/new/participants            → NewTicketParticipantsView
+/tickets/new/assign                  → NewTicketAssignView
+/tickets/new/summary                 → NewTicketSummaryView
 /tickets/:ticketId                   → TicketDetailView
 /settings                            → SettingsView
-/settings/feature-flags              → FeatureFlagsView (sub-ruta opcional)
+/settings/feature-flags              → FeatureFlagsView
+*                                    → vista de 404
 ```
 
-### Notas de diseño:
-- **Pasos transitorios** (`scanning`, `ocr-review`): **no** deben ser deep-linkables (refresh → redirige a `/tickets/new`). Se manejan como estados internos o `searchParams` (`?mode=scanning`).
-- **`/tickets` (lista)**: Requerido por Bug 1 ("Ver todo"). Nueva vista `TicketsListView` que usa `tickets` del store sin `slice(0,5)`.
-- **Params tipados**: `:ticketId`, `:groupId` → `useParams()` + validación Zod en loader.
+Notas de diseño del informe, con su resultado:
 
----
+| Nota de diseño | Resultado |
+| :--- | :--- |
+| Los pasos transitorios `scanning` y `ocr-review` no deben ser enlazables: al refrescar se redirige a `/tickets/new` | Adoptado: ninguno de los dos es una ruta de `frontend/src/main.tsx` |
+| `/tickets` requiere una vista de lista que muestre todos los tickets y no los cinco primeros | Entregado como vista, sin paginación y sin pantalla que enlace a ella |
+| Los parámetros `:ticketId` y `:groupId` se tipan y se validan al resolver la ruta | Entregado: las vistas leen el parámetro con `useParams()` |
 
-## Plan de Migración (Fase 1 + Fase 2)
+## Plan de migración ejecutado
 
-### Archivos a modificar — Fase 1 (Vistas de nivel superior)
+Tablas del informe conservadas como registro del plan. La columna «Cambio» describe lo que había que
+hacer en el momento de escribir el informe; el apartado `## Estado` declara qué se materializó.
 
-| Archivo | Cambio |
-|---------|--------|
-| `package.json` | `+ react-router-dom@^7` |
-| `main.tsx` | `<BrowserRouter>` + `<Routes>` + `<Route>` tree |
-| `store.ts` | **Mantener** `currentView`/`setView` como **wrappers** sobre `useNavigate()` para compatibilidad gradual. **Eliminar** `activeTicketId`/`activeGroupId` (→ `useParams`). `partialize`: **no persistir** `currentView`. |
-| `types.ts` | `ViewName` → `string` (o union de paths) |
-| `AppShell.tsx` | `<Outlet />` en lugar de `{children}`; bottom nav usa `useLocation()` / `NavLink` |
-| `NavigationBar.tsx` (deprecated) | Eliminar o adaptar a `NavLink` |
-| `HomeView.tsx` | `onClick={() => navigate('/tickets')}` para "Ver todo" |
-| `ContactsView`, `GroupsView`, `SettingsView`, `FeatureFlagsView`, `TicketDetailView`, `GroupDetailView` | `activeTicketId`/`activeGroupId` → `useParams()` |
-| `NewTicketView.tsx` | **No tocar aún** — Fase 2 |
-
-### Archivos a modificar — Fase 2 (Wizard multi-paso)
+### Fase 1 — Vistas de nivel superior
 
 | Archivo | Cambio |
-|---------|--------|
-| `NewTicketView.tsx` | **Refactor mayor**: extraer cada step a componente propio (`CaptureStep`, `ReviewStep`, `ParticipantsStep`, `AssignStep`, `SummaryStep`). Usar `<Routes><Route path="capture" element={<CaptureStep/>} ...>` anidados bajo `/tickets/new/*`. |
-| `NewTicketView` (nuevo contenedor) | `loader`: si no hay `ticketId` en store → `createTicket({status:'draft'})` y redirect a `/tickets/new/capture`. `action`: handle form submits por step. |
-| `useBlocker` | En cada step: `useBlocker(({currentLocation, nextLocation}) => !canLeaveStep && nextLocation.pathname !== currentLocation.pathname)` |
-| `back button` | `navigate(-1)` + lógica de borrar borrador si `step===capture` y ticket vacío (usa `loader`/`action` para limpiar). |
-| `deep-link protection` | Loader en `/tickets/new/assign` verifica `ticket.participantIds.length > 0` → redirect a `/tickets/new/participants` si no. |
+| :--- | :--- |
+| `frontend/package.json` | `+ react-router-dom@^7` |
+| `frontend/src/main.tsx` | Árbol de rutas con `createBrowserRouter` |
+| `frontend/src/lib/store.ts` | Retirar `currentView`, `activeTicketId` y `activeGroupId`: la ruta pasa a ser la única fuente de verdad, y `partialize` deja de incluirlos |
+| `frontend/src/lib/types.ts` | `ViewName` deja de ser la tabla de rutas |
+| `frontend/src/components/layout/AppShell.tsx` | `Outlet` en lugar de `children`; navegación inferior con `useLocation()` y `NavLink` |
+| `frontend/src/components/NavigationBar.tsx` | Retirar o adaptar a `NavLink` |
+| `frontend/src/views/HomeView.tsx` | Enlace de «Ver todo» hacia la lista de tickets |
+| `frontend/src/views/` restantes | Sustituir `activeTicketId` y `activeGroupId` por `useParams()` |
 
-### Archivos **sin cambios** (compartidos)
+### Fase 2 — Asistente de varios pasos
 
-- `store.ts` (data: people, groups, tickets, profile, settings, featureFlags — ya persistidos)
-- `components/ui/*`, `components/scan/*`, `components/onboarding/*`, `lib/scan/*`, `lib/calc.ts`, `styles/*`
-- `sw.js`, `manifest.webmanifest`, `index.html` (PWA intacto)
+| Archivo | Cambio |
+| :--- | :--- |
+| Vista de ticket nuevo | Extraer cada paso a su propio componente: captura, revisión, participantes, asignación y resumen |
+| Contenedor del asistente | `loader` que crea un ticket en estado borrador si no existe y redirige a `/tickets/new/capture` |
+| `useBlocker` | Guarda por paso que impide salir con cambios sin guardar |
+| Botón de retroceso | `navigate(-1)` y borrado del borrador si el paso es la captura y el ticket está vacío |
+| Protección de enlaces directos | `loader` que redirige a un paso anterior si faltan sus condiciones previas |
 
----
+### Archivos sin cambios
 
-## Persistencia & PWA
+- `frontend/src/lib/store.ts` en su parte de datos: personas, grupos, tickets, perfil, ajustes y
+  banderas, ya persistidos.
+- `frontend/src/components/ui/`, `frontend/src/components/scan/`, `frontend/src/lib/scan/`,
+  `frontend/src/lib/calc.ts` y `frontend/src/styles/`.
+- `frontend/public/sw.js`, `frontend/public/manifest.webmanifest` y `frontend/index.html`: la PWA
+  quedó intacta.
 
-### Zustand `partialize` (líneas 409-418 en `store.ts`)
+## Persistencia y PWA
+
+### `partialize` del estado
+
+El informe pedía excluir el estado de navegación de la persistencia. Es lo que hace hoy
+`frontend/src/lib/store.ts:465-475`: se persiste el dato y el puntero al borrador, y ninguna bandera
+de vista, porque no existe.
+
 ```ts
 partialize: (state) => ({
   people: state.people,
@@ -130,73 +189,167 @@ partialize: (state) => ({
   settings: state.settings,
   featureFlags: state.featureFlags,
   version: state.version,
-  // currentView, activeTicketId, activeGroupId, _startManual → NO persistidos
+  // Persistir draftTicketId para que refresh en wizard restaure el draft
+  draftTicketId: state.draftTicketId,
 })
 ```
-✅ **Correcto**: el estado de navegación **no se persiste**. El router es la única fuente de verdad tras la migración.
 
-### Service Worker (`sw.js`)
-- `request.mode === 'navigate'` → `caches.match('/')` → **funciona tal cual** con RR7 (toda navegación SPA termina en `/`).
-- **No se requieren cambios en SW**.
-- Precaché de `/` + backfill en `activate` cubre todos los assets JS/CSS.
+El estado de navegación no se persiste, así que el enrutador es la única fuente de verdad de la
+vista actual. `draftTicketId` sí se persiste, y esa es la pieza que permite recargar en medio del
+asistente sin perder el borrador: el `id` del ticket vive con el dato, no con la ruta.
 
----
+### Service worker
 
-## Riesgos & Edge Cases
+| Hecho | Valor |
+| :--- | :--- |
+| Respuesta a las navegaciones | `request.mode === 'navigate'` responde desde caché con el shell |
+| Cambios que la migración exigió | Ninguno: toda navegación de la SPA termina en el mismo documento |
+| Ruta del archivo | `frontend/public/sw.js` |
+| Lo que la migración no cambió | El precargado del shell y el relleno de cachés al activarse |
 
-| Riesgo | Impacto | Mitigación |
-|--------|---------|------------|
-| **Deep-link a `/tickets/new/assign` sin ticket en memoria** | Usuario refresca en medio del wizard → store vacío → crash | `loader` en ruta padre `/tickets/new/*`: si no hay `activeTicketId` → `createTicket({status:'draft'})` + redirect a `/tickets/new/capture` |
-| **Back button borra borrador inesperadamente** | UX confusa si el usuario navega atrás desde step 1 | `useBlocker` en step `capture`: si ticket vacío → `navigate('/')` + `deleteTicket(id)`; si tiene datos → confirm dialog nativo (`window.confirm`) |
-| **Scroll position restoration** | UX rota al navegar | `<ScrollRestoration />` (RR7) + `window.scrollTo(0,0)` en layout cambios |
-| **Tests existentes** (`ScanEngineSelector.test.tsx`) | Necesitan `<MemoryRouter>` wrapper | Añadir `renderWithRouter` helper en `setupTests.ts` |
-| **Bundle size** | +12 KB gz | Acceptable (actual ~175 KB gz). Code-split por ruta reduce carga inicial. |
-| **Type safety de params** | `:ticketId` string → validar | Zod schema en `loader` + `parseParams` en RR7 |
+## Riesgos y casos límite
 
----
+| Riesgo | Impacto | Mitigación prevista |
+| :--- | :--- | :--- |
+| Enlace directo a `/tickets/new/assign` sin ticket en memoria | Recargar en medio del asistente con el almacén vacío | `loader` en la ruta padre de `/tickets/new/*`: crear un borrador y redirigir a la captura |
+| El botón de retroceso borra el borrador sin avisar | Experiencia confusa al salir del primer paso | Guarda en el paso de captura: si el ticket está vacío, borrar y volver al inicio; si tiene datos, confirmar |
+| Restauración de la posición de scroll | Navegación que parece rota | `ScrollRestoration` y `window.scrollTo(0, 0)` al cambiar de vista |
+| Pruebas existentes con `useParams` | Necesitan una envoltura de enrutador | Envoltura de pruebas en `frontend/src/test-utils/render-with-router.tsx`, usada desde `frontend/src/setupTests.ts` |
+| Peso del bundle | +12 KB gz | Aceptable; la división de código por ruta reduce la carga inicial |
+| Tipado de los parámetros de ruta | `:ticketId` es una cadena sin validar | Esquema de validación en el `loader` |
 
-## Esfuerzo Estimado
+El apartado `## Estado` declara qué mitigaciones existen hoy. Las dos que quedaron parciales son la
+guarda de navegación, entregada como utilidad sin consumidores, y la restauración de la posición de
+scroll, que no llegó a montarse en ninguna vista.
 
-| Fase | Archivos | Líneas ~ | Riesgo | Tiempo |
-|------|----------|----------|--------|--------|
-| **Fase 1** (top-level routes) | 12 | ~35 | Bajo | 1-2 días |
-| **Fase 2** (wizard nested routes + blockers) | 8 | ~250 | **Alto** | 3-5 días |
-| **Tests & QA** | 5 | ~100 | Medio | 1 día |
-| **Total** | **~25** | **~400** | **Medio-Alto** | **5-8 días** |
+## Esfuerzo
 
-> **S/M/L:** Fase 1 = **S**, Fase 2 = **M**, Total = **M-L** (por complejidad del wizard).
+| Fase | Archivos estimados | Líneas estimadas | Riesgo estimado | Tiempo estimado |
+| :--- | ---: | ---: | :--- | :--- |
+| Fase 1 — rutas de nivel superior | 12 | ~35 | Bajo | 1-2 días |
+| Fase 2 — asistente anidado y guardas | 8 | ~250 | **Alto** | 3-5 días |
+| Pruebas y QA | 5 | ~100 | Medio | 1 día |
+| **Total** | **~25** | **~400** | **Medio-alto** | **5-8 días** |
 
----
+La tabla anterior es la estimación que el informe escribió antes de la migración; se conserva como
+parte del análisis. El tamaño observado del cambio se registró al revisarlo: `fc54af0`, 28 archivos,
+1664 líneas añadidas y 1265 eliminadas, según
+[docs/process/ai-workflow.md](/docs/process/ai-workflow.md). La migración se planificó como talla S
+en la fase 1 y M en la fase 2.
 
-## Recomendación Final
+## Recomendación final
 
-### ✅ **HACERLO — Enfoque por fases**
+Recomendación del informe, confirmada por el resultado:
 
-1. **Semana 1**: Fase 1 completa. Entrega valor inmediato: URLs compartibles, "Ver todo" funcional, back button nativo, PWA sin regresiones.
-2. **Semana 2-3**: Fase 2. Requiere diseño cuidadoso de loaders/actions/blockers. Probar exhaustivamente:
-   - Refresh en cada step
-   - Navegación atrás/adelante
-   - Offline + refresh
-   - Deep-link directo a `/tickets/:id`
-3. **No bloquea features actuales** — el router convive con Zustand wrappers durante la migración.
+1. **Fase 1, ejecutada**: rutas de nivel superior. El valor inmediato eran las URL compartibles, la
+   lista de tickets, el botón de retroceso nativo y una PWA sin regresiones.
+2. **Fase 2, ejecutada**: rutas anidadas del asistente. Exigía diseñar con cuidado los `loader`, las
+   `action` y las guardas, y probar la recarga en cada paso, la navegación hacia atrás y adelante,
+   el uso sin conexión con recarga y el enlace directo a `/tickets/:id`.
+3. **Convivencia**: la migración no bloqueó ninguna función, porque el enrutador convivió con las
+   envolturas de Zustand durante las dos fases.
 
-### ❌ **NO HACER (por ahora)**
-- Migrar a file-based routing (RR7 convention) — añade build complexity innecesaria.
-- Usar `@tanstack/router` — over-engineering para este scope.
-- Persistir `currentView` en localStorage — rompe deep-linking.
+Lo que el informe descartó sigue descartado:
 
----
+| Alternativa descartada | Comprobación |
+| :--- | :--- |
+| Enrutado por archivos del propio React Router | `frontend/src/main.tsx` declara el árbol de rutas a mano |
+| `@tanstack/router` | No aparece en `frontend/package.json` |
+| Persistir la vista actual en `localStorage` | Ninguna bandera de vista existe en `frontend/src/lib/store.ts` |
 
-## Próximos Pasos (si se aprueba)
+## Cierre y registro
 
-1. `cd frontend && pnpm add react-router-dom@7`
-2. Crear branch `feat/router-phase1`
-3. Implementar tabla "Fase 1" → PR → merge
-4. Crear branch `feat/router-phase2-wizard`
-5. Implementar tabla "Fase 2" → PR → merge
-6. Actualizar `setupTests.ts` con `renderWithRouter`
-7. Ejecutar suite completa + pruebas manuales offline + PWA audit (Lighthouse)
+| Hecho | Evidencia |
+| :--- | :--- |
+| El cambio se integró con el pull request #11, de la rama `refactor/routing`, el 2026-07-25 | `git log --merges` → `3994bec` |
+| El cambio tiene registro de archivo con su propuesta, su diseño y su cierre | `openspec/changes/archive/2026-07-25-routing-refactor/` |
+| El cambio pasó por revisión adversarial y sus hallazgos se corrigieron en un commit acotado | `openspec/changes/archive/2026-07-25-routing-refactor/judgment-day-report.md` y el commit `3e369a5` |
+| La decisión de arquitectura con su contexto y sus alternativas descartadas es canónica en otro documento | `DEC-ARCH-05` en [docs/architecture/decisions.md](/docs/architecture/decisions.md) |
 
----
+## Decisiones
 
-*Fin del informe. Generado en worktree `frontend-routing` (rama `refactor/routing`) — sin modificaciones de código.*
+Este informe no toma decisiones propias: recomienda y compara. La decisión que su recomendación
+provocó es `DEC-ARCH-05`, cuyo registro canónico, con su contexto y sus alternativas descartadas,
+está en [docs/architecture/decisions.md](/docs/architecture/decisions.md). Si esa decisión se
+repitiera aquí, quedaría escrita en dos sitios y empezaría a divergir, que es justo lo que el
+estándar prohíbe.
+
+## Cómo verificar este documento
+
+- [ ] Frontmatter completo:
+
+```bash
+for k in doc_id title domain audience status source_of_truth_for last_verified verified_against; do
+  grep -q "^$k:" ROUTING_FEASIBILITY.md && echo "OK: $k" || echo "FALLO: $k"
+done
+```
+
+- [ ] Estado dentro del vocabulario cerrado del estándar:
+
+```bash
+grep -qE '^status: (entregado|parcial|latente|descartado|planificado|mixto)$' ROUTING_FEASIBILITY.md \
+  && echo "OK: status" || echo "FALLO: status"
+```
+
+- [ ] El H1 repite el campo `title`:
+
+```bash
+grep -n '^# ' ROUTING_FEASIBILITY.md
+```
+
+- [ ] La adopción de la recomendación es verificable en el código:
+
+```bash
+grep -n 'react-router-dom' frontend/package.json
+grep -n 'createBrowserRouter' frontend/src/main.tsx
+grep -n 'useRouterBlocker' frontend/src/hooks/useBlocker.ts
+```
+
+- [ ] Las rutas citadas existen donde el documento dice:
+
+```bash
+for p in frontend/src/main.tsx frontend/src/lib/store.ts frontend/src/lib/types.ts \
+         frontend/src/components/layout/AppShell.tsx frontend/src/hooks/useBlocker.ts \
+         frontend/src/lib/wizard-loaders.ts frontend/src/views/NewTicketShell.tsx \
+         frontend/src/views/TicketsListView.tsx frontend/src/test-utils/render-with-router.tsx \
+         frontend/src/setupTests.ts frontend/public/sw.js frontend/package.json; do
+  test -f "$p" && echo "OK: $p" || echo "FALLO: $p"
+done
+```
+
+- [ ] El partialize documentado coincide con el del código:
+
+```bash
+grep -q 'draftTicketId: state.draftTicketId' frontend/src/lib/store.ts && echo "OK: partialize" || echo "FALLO: partialize"
+grep -n 'currentView' frontend/src/lib/store.ts || echo "OK: sin bandera de vista persistida"
+```
+
+- [ ] Las dos filas parciales del apartado de estado describen el código real:
+
+```bash
+grep -rn 'import.*useBlocker' frontend/src --include='*.ts*' | grep -v 'hooks/useBlocker.ts'
+grep -rn 'ScrollRestoration' frontend/src
+```
+
+→ sin salida en ambos: la guarda no tiene consumidores y la restauración de scroll no está montada.
+
+- [ ] No hay expresiones ambiguas ni enlaces que suban directorios:
+
+```bash
+grep -rniE 'previsto|se usará|está definido|planificado para|se implementará|\[Pending\]|\bReady\b' ROUTING_FEASIBILITY.md | grep -viE '«|»|`'
+grep -n '](\.\./' ROUTING_FEASIBILITY.md
+```
+
+## Referencias
+
+- [docs/architecture/decisions.md](/docs/architecture/decisions.md) — registro canónico de las decisiones `DEC-ARCH-xx`, con `DEC-ARCH-05` y las alternativas descartadas de esta comparativa
+- [docs/architecture/overview.md](/docs/architecture/overview.md) — arquitectura entregada, con el `Router` y las rutas anidadas del asistente
+- [docs/architecture/stack.md](/docs/architecture/stack.md) — posición del enrutado dentro del stack entregado
+- [docs/process/ai-workflow.md](/docs/process/ai-workflow.md) — ciclo de trabajo, revisión adversarial y tamaño observado del cambio de enrutado
+- [docs/process/delivery-and-branching.md](/docs/process/delivery-and-branching.md) — modelo de ramas y flujos que integraron el cambio
+- [docs/DOC-STANDARD.md](/docs/DOC-STANDARD.md) — estándar de escritura dual que gobierna este documento
+- `frontend/src/main.tsx` — árbol de rutas entregado con `createBrowserRouter`
+- `frontend/src/hooks/useBlocker.ts` — utilidad de guarda de navegación
+- `frontend/src/lib/wizard-loaders.ts` — condiciones de guarda y protección de los pasos del asistente
+- `frontend/src/lib/store.ts` — estado global, `partialize` y persistencia
+- `openspec/changes/archive/2026-07-25-routing-refactor/` — registro del cambio, con su informe de juicio adversarial
