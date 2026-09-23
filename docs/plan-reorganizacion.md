@@ -670,10 +670,23 @@ estado, acompañamiento textual de cada diagrama y fuente canónica declarada.
 | Registros `entregado` que citan ficheros inexistentes sin bloque de correspondencia | 0 |
 | Anclas internas del índice del `readme.md` | 10, **las 10 resuelven** |
 
+- **Verificación de contención, ejecutada el 2026-09-23:**
+
+| Comprobación | Resultado |
+| :--- | :--- |
+| Commits de `entrega2` ausentes en la rama de entrega | **0** |
+| `frontend/`, `.github/` y `openspec/` frente a `main` | **Idénticos**: la reorganización no tocó código |
+| Archivos de `main` sin sucesor en la rama de entrega | **0**: las 55 rutas retiradas tienen sucesor |
+| `main` contiene `entrega2` completo | **No**: le falta el commit de las URLs de despliegue |
+
 - **Criterios de aceptación:** cero enlaces rotos, cumplido; sin contradicciones cruzadas,
-cumplido; el PR queda pendiente de la decisión del usuario.
+cumplido; PR abierto con descripción del alcance, cumplido con doce.
+- **Entrega y limpieza:** publicada como cadena de doce PRs (#36–#47) y fusionada; borradas las doce
+ramas de la cadena; preservadas `poc/ocr-recognition`, `feature/adlc-specs-man` y
+`research/unit-price-exploration` por tener commits fuera de la rama de entrega.
 - **Pendiente de decisión del usuario:**
-  1. Abrir el PR hacia `feature/feature-entrega2-ADLC`.
+  1. Integrar `feature/feature-entregafinal-ADLC` en `main`. Recupera además el commit que a `main`
+     le falta desde la entrega 2.
   2. Qué hacer con las **cuatro limitaciones de código** encontradas durante la reorganización. Son
      cambios de código, no de documentación, y por eso quedan fuera de esta rama:
 
@@ -728,21 +741,22 @@ tienen ninguna vía de retorno abierta en el producto entregado.
 
 ---
 
-## 9. Fuera de alcance de esta rama
+## 9. Fuera de alcance de esta entrega
 
-- La ejecución de T1–T12: esta rama contiene únicamente el plan.
 - **`openspec/`**: se mantiene exactamente como está (decisión 4 de la sección 8).
-- Modificar código en `frontend/src`: el motor OCR `'server'` es un cambio pendiente y se aborda,
-  si procede, en un PR separado.
-- Push, apertura de PR y merge: decisiones del usuario.
-- Estado en red de las URLs de despliegue: no verificado.
+- Modificar código en `frontend/src`: la reorganización **no tocó código** —`frontend/`, `.github/`
+y `openspec/` son idénticos a `main`—, y las cuatro limitaciones encontradas se documentan en la
+ficha T12 en lugar de corregirse aquí.
+- La integración de `feature/feature-entregafinal-ADLC` en `main`: decisión del usuario.
+- Estado en red de las URLs de despliegue más allá de la medición del 2026-09-22.
 
 ---
 
 ## 10. Trazabilidad
 
-- Rama de trabajo: `docs/project-evolution`
-- Rama de integración destino: `feature/feature-entrega2-ADLC`
+- Rama de trabajo de la reorganización: `docs/project-evolution`
+- Rama de entrega: `feature/feature-entregafinal-ADLC`, creada desde `feature/feature-entrega2-ADLC`
+  en `c66fd3f`
 - Política del proyecto: rama de trabajo → PR → rama de integración → `main`. El merge no es
   automático y requiere revisión explícita del usuario.
 - Diagnóstico de la sección 2 obtenido por lectura directa de los 14 documentos de nivel superior
