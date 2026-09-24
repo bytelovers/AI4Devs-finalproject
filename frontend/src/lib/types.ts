@@ -219,7 +219,6 @@ export interface AppData {
   settings: {
     defaultTaxRate: number
     defaultTipPercentage: number
-    roundingMode: 'cents' | 'fifty' | 'unit'
     /** Motor de escaneo preferido. Default: 'tesseract-ner'. */
     preferredEngine: 'server' | 'tesseract' | 'tesseract-ner' | 'florence2'
   }

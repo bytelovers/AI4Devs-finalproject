@@ -55,7 +55,6 @@ describe('NewTicketCaptureView Integration & State Machine', () => {
       settings: {
         defaultTaxRate: 0.1,
         defaultTipPercentage: 0,
-        roundingMode: 'cents',
         preferredEngine: 'tesseract-ner',
       },
       featureFlags: {
