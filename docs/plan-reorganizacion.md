@@ -440,7 +440,7 @@ Los tres se entregaron en T9 y cada uno lleva su acompañamiento textual obligat
 | T8 | Dominio trazabilidad y evidencia | Reescritura | T1 | M | `entregado` |
 | T9 | Diagramas Mermaid (D1, D2, D3) | Diagramas | T2, T3, T8 | M | `entregado` |
 | T10 | Reparación transversal de enlaces y rutas | Reparación | T2–T8 | M | `entregado`, absorbida por T10a y T10b |
-| T11 | Raíz: `readme.md`, `ROUTING_FEASIBILITY.md`, `prompts.md` | Reparación | T2, T3 | L | `planificado` |
+| T11 | Raíz: `readme.md`, `ROUTING_FEASIBILITY.md`, `prompts.md` | Reparación | T2, T3 | L | `entregado` |
 | T12 | Verificación y cierre | Cierre | T1–T11 | S | `entregado` |
 
 El commit que cierra cada tarea es su evidencia y está en el historial de la rama
