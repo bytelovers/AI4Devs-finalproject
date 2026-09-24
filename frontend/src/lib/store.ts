@@ -88,7 +88,6 @@ const DEFAULT_DATA: AppData = {
   settings: {
     defaultTaxRate: 0.1, // 10% IVA
     defaultTipPercentage: 0,
-    roundingMode: 'cents',
     preferredEngine: 'tesseract-ner',
   },
   featureFlags: {

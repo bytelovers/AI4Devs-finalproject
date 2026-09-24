@@ -445,7 +445,7 @@ describe('persistence — merge migration', () => {
         },
       ],
       profile: { name: '', hasAccount: false },
-      settings: { defaultTaxRate: 0.1, defaultTipPercentage: 0, roundingMode: 'cents' },
+      settings: { defaultTaxRate: 0.1, defaultTipPercentage: 0 },
       // NO featureFlags — legacy shape
       version: 1,
     }
@@ -532,7 +532,6 @@ describe('useAppStore — backup export/import', () => {
     const ok = useAppStore.getState().importData(partial)
     expect(ok).toBe(true)
     expect(useAppStore.getState().settings.defaultTaxRate).toBe(0.21)
-    expect(useAppStore.getState().settings.roundingMode).toBe('cents')
     expect(useAppStore.getState().profile.name).toBe('Carol')
     expect(useAppStore.getState().featureFlags.verboseLogs).toBe(true)
   })
